@@ -1,0 +1,37 @@
+proxies:
+- name: US-Node-1
+  type: vless
+  server: us1.example.com
+  port: 443
+  uuid: 11111111-2222-3333-4444-555555555555
+  encryption: none
+  udp: true
+  tls: true
+  network: ws
+  ws-opts:
+    path: /ws
+- name: JP-Node-2
+  type: vless
+  server: jp1.example.com
+  port: 8443
+  uuid: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+  encryption: none
+  udp: true
+  tls: true
+  network: ws
+  ws-opts:
+    path: /ws
+- name: HK-Node-3
+  type: ss
+  server: hk1.example.com
+  port: 8388
+  cipher: aes-256-gcm
+  password: test-password
+  udp: true
+- name: "🇭🇰香港-IEPL"
+  type: ss
+  server: hk2.example.com
+  port: 8389
+  cipher: aes-256-gcm
+  password: test-password2
+  udp: true

@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SubForge</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f3f4f6;color:#1f2937;min-height:100vh}
+nav{background:#4f46e5;color:#fff;padding:0 24px;display:flex;align-items:center;height:56px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+nav h1{font-size:18px;font-weight:600;margin-right:32px;white-space:nowrap}
+nav .tabs{display:flex;gap:4px}
+nav .tabs a{color:rgba(255,255,255,.7);padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px;transition:.2s;text-decoration:none;white-space:nowrap}
+nav .tabs a:hover{background:rgba(255,255,255,.1)}
+nav .tabs a.active{background:rgba(255,255,255,.2);color:#fff;font-weight:500}
+.user-menu{margin-left:auto;display:flex;gap:8px;align-items:center}
+.user-menu .btn{color:rgba(255,255,255,.85);background:transparent;border:1px solid rgba(255,255,255,.3);font-size:12px;padding:4px 12px}
+.user-menu .btn:hover{background:rgba(255,255,255,.15);color:#fff}
+.container{max-width:1200px;margin:0 auto;padding:24px}
+.card{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:20px;margin-bottom:16px}
+.card h2{font-size:16px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card h2 .badge{background:#e0e7ff;color:#4f46e5;font-size:12px;padding:2px 8px;border-radius:10px;font-weight:500}
+.badge-gray{background:#f3f4f6!important;color:#6b7280!important}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;padding:10px 12px;background:#fff!important;color:#000!important;font-weight:500;border-bottom:1px solid #000!important;font-size:13px;white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid #f3f4f6}
+tr:hover td{background:#fafbff}
+.btn{padding:6px 14px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;transition:.2s;display:inline-flex;align-items:center;gap:4px}
+.btn-primary{background:#4f46e5;color:#fff}.btn-primary:hover{background:#4338ca}
+.btn-success{background:#10b981;color:#fff}.btn-success:hover{background:#059669}
+.btn-danger{background:#ef4444;color:#fff}.btn-danger:hover{background:#dc2626}
+.btn-ghost{background:#f3f4f6;color:#374151}.btn-ghost:hover{background:#e5e7eb}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-icon{padding:4px 8px;font-size:14px;background:transparent;border:1px solid #e5e7eb;border-radius:4px}
+.btn-icon:hover{background:#f3f4f6}
+.pwd-wrapper{position:relative}
+.pwd-wrapper input{width:100%;padding-right:38px}
+.btn-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:2px;line-height:0;color:#9ca3af}
+.btn-eye:hover{color:#6b7280}
+.btn-eye svg{width:20px;height:20px}
+.btn-text{background:none;border:none;color:#4f46e5;cursor:pointer;font-size:13px;padding:2px 6px;font-weight:500}
+.btn-text:hover{text-decoration:underline}
+.btn-text.danger{color:#ef4444}
+input,select,textarea{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;width:100%;outline:none;transition:.2s;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.1)}
+textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font-size:13px}
+.form-row{display:flex;gap:12px;margin-bottom:12px;align-items:end}
+.form-row .field{flex:1}
+.form-row .field label{display:block;font-size:13px;color:#6b7280;margin-bottom:4px;font-weight:500}
+.toggle{position:relative;width:40px;height:22px;display:inline-block;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle .slider{position:absolute;inset:0;background:#d1d5db;border-radius:22px;transition:.2s;cursor:pointer}
+.toggle .slider:before{content:'';position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle input:checked+.slider{background:#4f46e5}
+.toggle input:checked+.slider:before{transform:translateX(18px)}
+.sub-url{display:flex;gap:8px;align-items:center}
+.sub-url input{font-family:monospace;font-size:13px;background:#f9fafb}
+.sub-url .btn{white-space:nowrap}
+.empty{text-align:center;padding:40px;color:#9ca3af;font-size:14px}
+.toast{position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:8px;color:#fff;font-size:14px;z-index:999;animation:slideIn .3s}
+.toast.success{background:#10b981}
+.toast.error{background:#ef4444}
+@keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
+.preview{background:#1e1e2e;color:#cdd6f4;border-radius:8px;padding:16px;font-family:"Fira Code",monospace;font-size:12px;max-height:500px;overflow:auto;white-space:pre;line-height:1.6}
+.stats{display:flex;gap:16px;margin-bottom:20px}
+.stat{background:#fff;border-radius:10px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,.08);flex:1;text-align:center}
+.stat .num{font-size:28px;font-weight:700;color:#4f46e5}
+.stat .label{font-size:12px;color:#9ca3af;margin-top:4px}
+.login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)}
+.login-card{background:#fff;border-radius:16px;padding:40px;width:360px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.login-card h2{text-align:center;margin-bottom:8px;font-size:22px;color:#1f2937}
+.login-card p{text-align:center;color:#9ca3af;font-size:13px;margin-bottom:24px}
+.login-card input{margin-bottom:16px}
+.login-card .btn{width:100%;padding:12px;font-size:15px;justify-content:center}
+.login-error{color:#ef4444;font-size:13px;text-align:center;margin-top:8px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal{background:#fff;border-radius:12px;padding:24px;width:640px;max-width:90vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h3{font-size:18px;font-weight:600;margin-bottom:20px}
+.truncate{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle}
+.tag{font-size:12px;padding:2px 8px;border-radius:4px;white-space:nowrap}
+.tag-blue{background:#e0e7ff;color:#4f46e5}
+.tag-green{background:#dcfce7;color:#166534}
+.tag-orange{background:#fef3c7;color:#92400e}
+.section{border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-top:16px}
+.section h3{font-size:14px;font-weight:600;margin-bottom:12px;color:#374151}
+.node-group{margin-bottom:12px}
+.node-group h4{font-size:13px;color:#6b7280;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.node-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px;max-height:240px;overflow-y:auto;padding:2px}
+.node-item{display:flex;align-items:center;gap:4px;padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;line-height:1.3}
+.node-item:hover{background:#f3f4f6}
+.node-item input[type="checkbox"]{margin:0;cursor:pointer;flex-shrink:0;width:14px;height:14px}
+.inline-input{border:1px solid transparent;padding:4px 8px;border-radius:4px;font-size:13px;width:120px;background:transparent}
+.inline-input:hover{border-color:#d1d5db;background:#fff}
+.inline-input:focus{border-color:#4f46e5;background:#fff;box-shadow:0 0 0 2px rgba(79,70,229,.1)}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- Login -->
+<div v-if="!loggedIn" class="login-page">
+  <div class="login-card">
+    <h2>SubForge</h2>
+    <p>请登录以管理订阅和规则</p>
+    <input v-model="loginForm.username" placeholder="用户名" @keyup.enter="login">
+    <input v-model="loginForm.password" type="password" placeholder="密码" @keyup.enter="login">
+    <button class="btn btn-primary" @click="login">登录</button>
+    <div v-if="loginError" class="login-error">{{loginError}}</div>
+  </div>
+</div>
+
+<!-- Main -->
+<template v-else>
+<nav>
+  <h1>SubForge</h1>
+  <div class="tabs">
+    <a :class="{active:tab==='subs'}" @click="tab='subs'">订阅源</a>
+    <a :class="{active:tab==='nodes'}" @click="tab='nodes';loadAliasPresets()">节点管理</a>
+    <a :class="{active:tab==='services'}" @click="tab='services';loadServices();loadDnsPresets()">服务规则</a>
+    <a :class="{active:tab==='profiles'}" @click="tab='profiles';loadDnsPresets()">订阅分发</a>
+  </div>
+  <div class="user-menu">
+    <button class="btn" @click="openAccountModal">账号设置</button>
+    <button class="btn" @click="logout">登出</button>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="stats">
+    <div class="stat"><div class="num">{{subscriptions.length}}</div><div class="label">订阅源</div></div>
+    <div class="stat"><div class="num">{{nodes.length}}</div><div class="label">节点</div></div>
+    <div class="stat"><div class="num">{{services.length}}</div><div class="label">服务规则</div></div>
+    <div class="stat"><div class="num">{{totalRules}}</div><div class="label">规则总数</div></div>
+  </div>
+
+  <!-- ============ 订阅源 ============ -->
+  <div v-if="tab==='subs'">
+    <div class="card">
+      <h2>添加订阅</h2>
+      <div class="form-row">
+        <div class="field"><label>名称</label><input v-model="newSub.name" placeholder="如：我的机场"></div>
+        <div class="field" style="flex:2"><label>订阅地址</label><input v-model="newSub.url" placeholder="https://..."></div>
+        <div><button class="btn btn-primary" @click="addSub" :disabled="!newSub.name">添加</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>订阅列表 <span class="badge">{{subscriptions.length}}</span></h2>
+      <div style="overflow-x:auto">
+      <table v-if="subscriptions.length">
+        <thead><tr><th>名称</th><th>地址</th><th>节点</th><th>流量</th><th>到期</th><th>更新时间</th><th>自动刷新</th><th>间隔</th><th>附名</th><th>附流量</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr v-for="s in subscriptions" :key="s.id">
+            <td><strong>{{s.name}}</strong></td>
+            <td><span class="truncate" :title="s.url">{{s.url}}</span></td>
+            <td>{{s.node_count}}</td>
+            <td>{{fmtTraffic(s)}}</td>
+            <td>{{s.sub_expiry||'-'}}</td>
+            <td>{{formatDate(s.last_fetched)}}</td>
+            <td><label class="toggle"><input type="checkbox" :checked="s.auto_refresh" @change="patchSub(s,{auto_refresh:$event.target.checked})"><span class="slider"></span></label></td>
+            <td><input type="number" :value="s.interval_sec" @change="patchSub(s,{interval_sec:+$event.target.value})" style="width:80px;padding:4px 6px;font-size:12px"></td>
+            <td><label class="toggle"><input type="checkbox" :checked="s.append_sub_name" @change="patchSub(s,{append_sub_name:$event.target.checked})"><span class="slider"></span></label></td>
+            <td><label class="toggle"><input type="checkbox" :checked="s.append_traffic" @change="patchSub(s,{append_traffic:$event.target.checked})"><span class="slider"></span></label></td>
+            <td style="white-space:nowrap">
+              <button class="btn-text" @click="openEditSub(s)">编辑</button>
+              <button class="btn-text" @click="fetchSub(s.id)">拉取</button>
+              <button class="btn-text danger" @click="delSub(s.id)">删除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <div v-if="!subscriptions.length" class="empty">暂无订阅，请先添加订阅源</div>
+    </div>
+  </div>
+
+  <!-- ============ 节点管理 ============ -->
+  <div v-if="tab==='nodes'">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
+        <h2>节点管理 <span class="badge">{{enabledNodes}}/{{nodes.length}} 已启用</span></h2>
+        <button class="btn btn-primary btn-sm" @click="openAddNode">+ 添加节点</button>
+      </div>
+      <div v-if="nodes.length" style="margin-bottom:12px;display:flex;gap:12px;flex-wrap:wrap">
+        <input v-model="nodeFilter" placeholder="搜索节点名称..." style="max-width:260px">
+        <select v-model="nodeSubFilter" style="width:auto;min-width:120px">
+          <option value="">全部订阅</option>
+          <option value="本地">本地</option>
+          <option v-for="s in subscriptions" :value="s.name" :key="s.id">{{s.name}}</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto">
+      <table v-if="filteredNodes.length">
+        <thead><tr><th>订阅</th><th>名称</th><th>别名</th><th>协议</th><th>服务器</th><th>端口</th><th>启用</th><th>操作</th></tr></thead>
+        <tbody>
+          <template v-for="(n,i) in filteredNodes" :key="n.id">
+            <tr v-if="i>0&&n.sub_name!==filteredNodes[i-1].sub_name" style="height:2px"><td colspan="8" style="padding:0;background:#e5e7eb;border:none"></td></tr>
+            <tr>
+              <td><span class="tag" :class="n.sub_name==='本地'?'tag-orange':'tag-blue'" v-if="n.sub_name">{{n.sub_name}}</span></td>
+              <td>{{n.name}}</td>
+              <td><input class="inline-input" :value="n.alias" @blur="saveAlias(n,$event.target.value)" @keyup.enter="$event.target.blur()" placeholder="自定义别名"></td>
+              <td><span class="tag tag-blue">{{n.type}}</span></td>
+              <td style="font-family:monospace;font-size:13px">{{n.server}}</td>
+              <td>{{n.port}}</td>
+              <td><label class="toggle"><input type="checkbox" :checked="n.enabled" @change="toggleNode(n.id,$event.target.checked)"><span class="slider"></span></label></td>
+              <td style="white-space:nowrap">
+                <button class="btn-text" @click="openEditNode(n)">编辑</button>
+                <button class="btn-text danger" @click="delNode(n.id)" v-if="n.sub_name==='本地'">删除</button>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      </div>
+      <div v-if="!filteredNodes.length" class="empty">{{nodes.length?'无匹配节点':'暂无节点，请先添加并拉取订阅'}}</div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" @click="showAliasPresets=!showAliasPresets">
+        <h2 style="margin-bottom:0">预设别名</h2>
+        <span style="font-size:13px;color:#6b7280">{{showAliasPresets?'收起':'展开'}}</span>
+      </div>
+      <template v-if="showAliasPresets">
+        <p style="font-size:13px;color:#6b7280;margin:8px 0">每行一条规则，格式：关键字 = 别名。节点名称包含关键字时自动填充别名（仅对空别名生效）。</p>
+        <textarea v-model="aliasPresetsText" rows="6" placeholder="香港 = HK&#10;台湾 = TW&#10;日本 = JP&#10;新加坡 = SG"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-primary btn-sm" @click="saveAliasPresets">保存</button>
+          <button class="btn btn-ghost btn-sm" @click="applyAliasPresets">应用预设</button>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ============ 服务规则 ============ -->
+  <div v-if="tab==='services'">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="margin-bottom:0">服务规则 <span class="badge">{{services.length}}</span></h2>
+        <button class="btn btn-primary btn-sm" @click="openAddSvc">+ 添加规则</button>
+      </div>
+      <div style="overflow-x:auto">
+      <table v-if="services.length">
+        <thead><tr><th>排序</th><th>启用</th><th>图标</th><th>名称</th><th>类型</th><th>默认节点</th><th>规则数</th><th>更新时间</th><th>操作</th><th>自动刷新</th></tr></thead>
+        <tbody>
+          <tr v-for="(s,i) in services" :key="s.id">
+            <td style="white-space:nowrap">
+              <button class="btn-icon" @click="moveGlobalSvc(i,-1)" :disabled="i===0" style="font-size:12px">↑</button>
+              <button class="btn-icon" @click="moveGlobalSvc(i,1)" :disabled="i===services.length-1" style="font-size:12px">↓</button>
+            </td>
+            <td><label class="toggle"><input type="checkbox" :checked="s.enabled" @change="toggleSvcEnabled(s)"><span class="slider"></span></label></td>
+            <td><img v-if="s.icon&&s.icon.startsWith('http')" :src="s.icon" style="width:20px;height:20px;vertical-align:middle;border-radius:4px"><span v-else>{{s.icon}}</span></td>
+            <td><strong>{{s.name}}</strong></td>
+            <td><span class="tag" :class="s.rule_type==='local'?'tag-orange':'tag-blue'">{{s.rule_type==='local'?'本地':'远程'}}</span></td>
+            <td><span class="tag" :class="s.default_proxy==='DIRECT'?'tag-green':s.default_proxy==='REJECT'?'tag-orange':'tag-blue'">{{s.default_proxy}}</span></td>
+            <td>{{s.rule_count}}</td>
+            <td>{{formatDate(s.last_fetched)}}</td>
+            <td style="white-space:nowrap">
+              <button class="btn-text" @click="editSvc(s)">编辑</button>
+              <button class="btn-text" @click="fetchSvcRules(s.id)" v-if="s.rule_type!=='local'">刷新</button>
+              <button class="btn-text danger" @click="delSvc(s.id)">删除</button>
+            </td>
+            <td><label class="toggle" v-if="s.rule_type!=='local'"><input type="checkbox" :checked="s.auto_refresh" @change="toggleSvcAutoRefresh(s)"><span class="slider"></span></label></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <div v-if="!services.length" class="empty">暂无服务规则</div>
+    </div>
+
+    <!-- DNS 预设 -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="margin-bottom:0">DNS 配置 <span class="badge">{{dnsPresets.length}}</span></h2>
+        <button class="btn btn-primary btn-sm" @click="openAddDns">+ 添加配置</button>
+      </div>
+      <table v-if="dnsPresets.length">
+        <thead><tr><th>名称</th><th>类型</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr v-for="d in dnsPresets" :key="d.id">
+            <td><strong>{{d.name}}</strong></td>
+            <td><span class="tag" :class="d.builtin?'tag-green':'tag-blue'">{{d.builtin?'默认':'自定义'}}</span></td>
+            <td>
+              <button class="btn-text" @click="editDns(d)">编辑</button>
+              <button class="btn-text danger" @click="delDns(d.id)">删除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============ 订阅分发 ============ -->
+  <div v-if="tab==='profiles'">
+    <div class="card">
+      <h2>创建订阅分发</h2>
+      <div class="form-row">
+        <div class="field"><label>名称</label><input v-model="newProfile.name" placeholder="如：手机、路由器"></div>
+        <div><button class="btn btn-primary" @click="addProfile" :disabled="!newProfile.name">创建</button></div>
+      </div>
+    </div>
+
+    <div class="card" v-for="p in profiles" :key="p.id">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2 style="margin-bottom:0">
+          {{p.name}}
+          <span class="badge" :class="p.enabled?'':'badge-gray'">{{p.enabled?'已启用':'已停用'}}</span>
+          <span v-if="isExpired(p)" class="badge" style="background:#fef2f2;color:#dc2626">已过期</span>
+        </h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-ghost btn-sm" @click="expandProfile(p.id)">{{expandedProfile===p.id?'收起':'编辑'}}</button>
+          <label class="toggle"><input type="checkbox" :checked="p.enabled" @change="patchProfile(p.id,{enabled:$event.target.checked})"><span class="slider"></span></label>
+          <button class="btn btn-danger btn-sm" @click="delProfile(p.id)">删除</button>
+        </div>
+      </div>
+      <div class="sub-url" style="margin-top:12px">
+        <input :value="subUrl(p.token)" readonly @click="$event.target.select()">
+        <button class="btn btn-ghost" @click="copyUrl(p.token)">复制</button>
+        <button class="btn btn-ghost btn-sm" @click="downloadConfig(p.token)">下载</button>
+      </div>
+
+      <!-- Profile Editor -->
+      <template v-if="expandedProfile===p.id">
+        <!-- Settings -->
+        <div class="section">
+          <h3>配置选项</h3>
+          <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;font-size:13px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span>有效期：</span>
+              <input type="date" :value="p.expires_at?p.expires_at.split('T')[0]:''" @change="patchProfile(p.id,{expires_at:$event.target.value?new Date($event.target.value+'T23:59:59').toISOString():null})" style="width:auto;padding:4px 8px;font-size:13px">
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span>GEOIP 中国直连：</span>
+              <label class="toggle"><input type="checkbox" :checked="p.geoip_cn" @change="patchProfile(p.id,{geoip_cn:$event.target.checked})"><span class="slider"></span></label>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span>全局兜底：</span>
+              <label class="toggle"><input type="checkbox" :checked="p.catch_all" @change="patchProfile(p.id,{catch_all:$event.target.checked})"><span class="slider"></span></label>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span>DNS预设：</span>
+              <select :value="p.dns_preset_id||0" @change="patchProfile(p.id,{dns_preset_id:+$event.target.value})" style="width:auto;min-width:120px;padding:4px 8px;font-size:13px">
+                <option :value="0">默认</option>
+                <option v-for="d in dnsPresets" :value="d.id" :key="d.id">{{d.name}}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Node Selector -->
+        <div class="section">
+          <h3>节点选择 <span class="badge">{{profileEnabledNodeCount}}/{{profileNodeData.length}}</span>
+            <button class="btn-text" @click="batchProfileNodes(true)" style="margin-left:auto">全选</button>
+            <button class="btn-text" @click="batchProfileNodes(false)">全不选</button>
+          </h3>
+          <div v-for="(nodes,subName) in groupedProfileNodes" :key="subName" class="node-group">
+            <h4>
+              {{subName||'未分组'}}
+              <button class="btn-text" @click="batchProfileNodeGroup(subName,true)" style="font-size:12px">全选</button>
+              <button class="btn-text" @click="batchProfileNodeGroup(subName,false)" style="font-size:12px">取消</button>
+            </h4>
+            <div class="node-grid">
+              <label class="node-item" v-for="n in nodes" :key="n.node_id">
+                <input type="checkbox" :checked="n.enabled" @change="toggleProfileNode(n.node_id,$event.target.checked)">
+                <span>{{nodeDisplayName(n)}}</span>
+              </label>
+            </div>
+          </div>
+          <div v-if="!profileNodeData.length" class="empty" style="padding:16px">暂无节点</div>
+        </div>
+
+        <!-- Service Rules -->
+        <div class="section">
+          <h3 style="display:flex;align-items:center">服务规则 <span class="badge">{{profileEnabledSvcCount}}/{{profileSvcData.length}}</span>
+            <button class="btn-text" @click="resetProfileSvcOrder" style="margin-left:auto">重置规则</button>
+          </h3>
+          <table v-if="profileSvcData.length" style="font-size:13px">
+            <thead><tr><th>启用</th><th>排序</th><th>图标</th><th>名称</th><th>默认节点</th><th>规则数</th></tr></thead>
+            <tbody>
+              <tr v-for="(s,i) in profileSvcData" :key="s.service_group_id">
+                <td><label class="toggle"><input type="checkbox" :checked="s.enabled" @change="toggleProfileSvc(s.service_group_id,$event.target.checked)"><span class="slider"></span></label></td>
+                <td style="white-space:nowrap">
+                  <button class="btn-icon" @click="moveProfileSvc(i,-1)" :disabled="i===0" style="font-size:12px">↑</button>
+                  <button class="btn-icon" @click="moveProfileSvc(i,1)" :disabled="i===profileSvcData.length-1" style="font-size:12px">↓</button>
+                </td>
+                <td><img v-if="s.icon&&s.icon.startsWith('http')" :src="s.icon" style="width:20px;height:20px;vertical-align:middle;border-radius:4px"><span v-else>{{s.icon}}</span></td>
+                <td>{{s.name}}</td>
+                <td>
+                  <select :value="s.default_proxy_override||''" @change="updateProfileSvcProxy(s.service_group_id,$event.target.value)" style="width:auto;min-width:100px;padding:3px 6px;font-size:12px">
+                    <option value="">继承 ({{s.default_proxy}})</option>
+                    <option value="自动选择">自动选择</option>
+                    <option value="节点选择">节点选择</option>
+                    <option value="DIRECT">直连 (DIRECT)</option>
+                    <option value="REJECT">拒绝 (REJECT)</option>
+                    <option v-for="n in profileEnabledNodes" :key="n.node_id" :value="nodeDisplayName(n)">{{nodeDisplayName(n)}}</option>
+                  </select>
+                </td>
+                <td>{{s.rule_count}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Preview -->
+        <div style="margin-top:16px;text-align:right">
+          <button class="btn btn-primary" @click="previewProfileConfig(p.id)">{{profilePreview===p.id?'关闭预览':'预览配置'}}</button>
+        </div>
+        <div v-if="profilePreview===p.id" style="margin-top:12px">
+          <pre class="preview">{{profilePreviewContent}}</pre>
+        </div>
+      </template>
+    </div>
+    <div v-if="!profiles.length" class="card"><div class="empty">暂无订阅分发，请先创建</div></div>
+  </div>
+</div>
+</template>
+
+<!-- Edit Service Modal -->
+<div v-if="svcModal" class="modal-overlay" @click.self="svcModal=false">
+  <div class="modal">
+    <h3>{{editingSvcId?'编辑服务规则':'添加服务规则'}}</h3>
+    <div class="form-row">
+      <div class="field"><label>名称</label><input v-model="svcForm.name" placeholder="如：Google"></div>
+      <div class="field"><label>图标</label><input v-model="svcForm.icon" placeholder="🔍"></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>默认节点</label>
+        <select v-model="svcForm.default_proxy"><option value="自动选择">自动选择</option><option value="DIRECT">直连 (DIRECT)</option><option value="REJECT">拒绝 (REJECT)</option></select>
+      </div>
+      <div class="field"><label>规则类型</label>
+        <select v-model="svcForm.rule_type"><option value="remote">远程</option><option value="local">本地</option></select>
+      </div>
+    </div>
+    <div v-if="svcForm.rule_type==='remote'" class="form-row">
+      <div class="field"><label>规则链接 (YAML，每行一个链接)</label><textarea v-model="svcForm.rule_url" rows="3" placeholder="https://cdn.jsdelivr.net/...&#10;https://cdn.jsdelivr.net/...（多个链接请换行）" style="min-height:60px"></textarea></div>
+    </div>
+    <div v-if="svcForm.rule_type==='local'">
+      <div class="field" style="margin-bottom:12px"><label>规则内容 (YAML payload 格式)</label>
+        <textarea v-model="svcForm.cached_rules" rows="10" placeholder="payload:&#10;  - DOMAIN-SUFFIX,example.com&#10;  - DOMAIN-KEYWORD,example"></textarea>
+      </div>
+    </div>
+    <div v-if="editingSvcId" style="margin-bottom:16px">
+      <button class="btn btn-ghost btn-sm" @click="previewSvcRules">预览规则</button>
+      <div v-if="svcRulePreview" style="margin-top:8px;max-height:300px;overflow:auto;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px;font-family:monospace;font-size:12px;white-space:pre-wrap">{{svcRulePreview}}</div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" @click="svcModal=false">取消</button>
+      <button class="btn btn-primary" @click="saveSvc" :disabled="!svcForm.name||(svcForm.rule_type==='remote'&&!svcForm.rule_url.trim())">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- DNS Preset Modal -->
+<div v-if="dnsModal" class="modal-overlay" @click.self="dnsModal=false">
+  <div class="modal">
+    <h3>{{editingDnsId?'编辑 DNS 配置':'添加 DNS 配置'}}</h3>
+    <div class="form-row"><div class="field"><label>名称</label><input v-model="dnsForm.name" placeholder="如：海外DNS"></div></div>
+    <div class="field" style="margin-bottom:16px"><label>DNS 配置 (YAML)</label>
+      <textarea v-model="dnsForm.config" rows="15" placeholder="enable: true&#10;ipv6: false&#10;enhanced-mode: fake-ip&#10;..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" @click="dnsModal=false">取消</button>
+      <button class="btn btn-primary" @click="saveDns" :disabled="!dnsForm.name||!dnsForm.config">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Account Settings Modal -->
+<div v-if="pwdModal" class="modal-overlay" @click.self="pwdModal=false">
+  <div class="modal" style="width:400px">
+    <h3>账号设置</h3>
+    <div class="form-row"><div class="field"><label>新用户名（留空不修改）</label><input v-model="pwdForm.new_username" :placeholder="currentUsername"></div></div>
+    <div class="form-row"><div class="field"><label>当前密码（必填）</label><div class="pwd-wrapper"><input :type="showOldPwd?'text':'password'" v-model="pwdForm.old_password"><button type="button" class="btn-eye" @click="showOldPwd=!showOldPwd"><svg v-if="!showOldPwd" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg><svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg></button></div></div></div>
+    <div class="form-row"><div class="field"><label>新密码（留空不修改）</label><div class="pwd-wrapper"><input :type="showNewPwd?'text':'password'" v-model="pwdForm.new_password" @keyup.enter="changePwd"><button type="button" class="btn-eye" @click="showNewPwd=!showNewPwd"><svg v-if="!showNewPwd" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg><svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg></button></div></div></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-ghost" @click="pwdModal=false">取消</button>
+      <button class="btn btn-primary" @click="changePwd" :disabled="!pwdForm.old_password||(!pwdForm.new_password&&!pwdForm.new_username)">确认修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- Subscription Edit Modal -->
+<div v-if="subEditModal" class="modal-overlay" @click.self="subEditModal=false">
+  <div class="modal">
+    <h3>编辑订阅源</h3>
+    <div class="form-row"><div class="field"><label>名称</label><input v-model="subEditForm.name"></div></div>
+    <div class="form-row"><div class="field"><label>订阅地址</label><input v-model="subEditForm.url" placeholder="https://..."></div></div>
+    <div class="form-row"><div class="field"><label>排除关键字（逗号分隔，节点名包含关键字将被过滤）</label><input v-model="subEditForm.exclude_keywords" placeholder="剩余流量,过期时间"></div></div>
+    <div class="field" style="margin-bottom:16px"><label>订阅原文（可选，粘贴后将直接导入节点）</label>
+      <textarea v-model="subEditForm.content" rows="10" placeholder="粘贴 YAML 或 Base64 格式的订阅内容..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" @click="subEditModal=false">取消</button>
+      <button class="btn btn-primary" @click="saveEditSub">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Node Edit Modal -->
+<div v-if="nodeEditModal" class="modal-overlay" @click.self="nodeEditModal=false">
+  <div class="modal">
+    <h3>{{nodeEditForm.id?'编辑节点':'添加节点'}}</h3>
+    <div v-if="nodeEditForm.id && nodeEditForm.subscription_id > 0" style="background:#fef3c7;color:#92400e;padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:16px">
+      ⚠ 此节点来自订阅源，订阅自动更新时将覆盖当前修改。
+    </div>
+    <div v-if="!nodeEditForm.id">
+      <div class="form-row">
+        <div class="field"><label>名称</label><input v-model="nodeEditForm.name" placeholder="节点名称"></div>
+        <div class="field"><label>协议</label>
+          <select v-model="nodeEditForm.type"><option value="vless">VLESS</option><option value="vmess">VMess</option><option value="ss">SS</option><option value="trojan">Trojan</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>服务器</label><input v-model="nodeEditForm.server" placeholder="example.com"></div>
+        <div class="field" style="flex:0 0 120px"><label>端口</label><input type="number" v-model.number="nodeEditForm.port" placeholder="443"></div>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:16px">
+      <label>原始配置 (JSON)</label>
+      <textarea v-model="nodeEditForm.raw_config" rows="12" placeholder='{"name":"...","type":"vless","server":"...","port":443,...}'></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" @click="nodeEditModal=false">取消</button>
+      <button class="btn btn-primary" @click="saveNodeEdit">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div v-if="toast.show" class="toast" :class="toast.type">{{toast.msg}}</div>
+</div>
+
+<script>
+const {createApp,ref,computed,onMounted} = Vue
+createApp({
+  setup(){
+    const loggedIn = ref(false)
+    const loginForm = ref({username:'',password:''})
+    const loginError = ref('')
+    const tab = ref('subs')
+    const subscriptions = ref([])
+    const nodes = ref([])
+    const services = ref([])
+    const dnsPresets = ref([])
+    const profiles = ref([])
+    const nodeFilter = ref('')
+    const nodeSubFilter = ref('')
+    const newSub = ref({name:'',url:''})
+    const newProfile = ref({name:''})
+    const toast = ref({show:false,msg:'',type:'success'})
+
+    const svcModal = ref(false)
+    const editingSvcId = ref(null)
+    const svcForm = ref({name:'',icon:'🌐',rule_url:'',rule_type:'remote',default_proxy:'自动选择',cached_rules:''})
+    const svcRulePreview = ref('')
+
+    const dnsModal = ref(false)
+    const editingDnsId = ref(null)
+    const dnsForm = ref({name:'',config:''})
+
+    const pwdModal = ref(false)
+    const pwdForm = ref({old_password:'',new_password:'',new_username:''})
+    const currentUsername = ref('admin')
+    const showOldPwd = ref(false)
+    const showNewPwd = ref(false)
+
+    const subEditModal = ref(false)
+    const subEditForm = ref({id:null,name:'',url:'',exclude_keywords:'',content:''})
+
+    const nodeEditModal = ref(false)
+    const nodeEditForm = ref({id:null,name:'',type:'vless',server:'',port:443,raw_config:'',subscription_id:0})
+    const showAliasPresets = ref(false)
+    const aliasPresetsText = ref('')
+
+    const expandedProfile = ref(null)
+    const profileNodeData = ref([])
+    const profileSvcData = ref([])
+    const profilePreview = ref(null)
+    const profilePreviewContent = ref('')
+
+    const enabledNodes = computed(()=>nodes.value.filter(n=>n.enabled).length)
+    const filteredNodes = computed(()=>{
+      let list = nodes.value
+      if(nodeSubFilter.value) list = list.filter(n=>n.sub_name===nodeSubFilter.value)
+      if(nodeFilter.value){
+        const q=nodeFilter.value.toLowerCase()
+        list = list.filter(n=>(n.name+' '+n.alias+' '+n.server).toLowerCase().includes(q))
+      }
+      return list
+    })
+    const totalRules = computed(()=>services.value.reduce((a,s)=>a+(s.rule_count||0),0))
+    const subUrl = token=>`${location.origin}/sub?token=${token}`
+
+    const groupedProfileNodes = computed(()=>{
+      const groups = {}
+      for(const n of profileNodeData.value){
+        const key = n.sub_name||'未分组'
+        if(!groups[key]) groups[key]=[]
+        groups[key].push(n)
+      }
+      return groups
+    })
+    const profileEnabledNodeCount = computed(()=>profileNodeData.value.filter(n=>n.enabled).length)
+    const profileEnabledNodes = computed(()=>profileNodeData.value.filter(n=>n.enabled))
+    const profileEnabledSvcCount = computed(()=>profileSvcData.value.filter(s=>s.enabled).length)
+
+    function notify(msg,type='success'){toast.value={show:true,msg,type};setTimeout(()=>toast.value.show=false,2500)}
+    function fmtTraffic(s){
+      if(!s.traffic_total) return '-'
+      return fmtBytes(s.traffic_used)+' / '+fmtBytes(s.traffic_total)
+    }
+    function fmtBytes(b){
+      if(!b||b<=0) return '0B'
+      const u=['B','KB','MB','GB','TB'];let v=b,i=0
+      while(v>=1024&&i<u.length-1){v/=1024;i++}
+      return i===0?v.toFixed(0)+u[i]:v.toFixed(1)+u[i]
+    }
+    function formatDate(d){return d?new Date(d).toLocaleString():'-'}
+    function isExpired(p){return p.expires_at&&new Date(p.expires_at)<new Date()}
+    function nodeDisplayName(n){
+      let base=n.alias||n.name
+      let suffix=''
+      if(n.append_sub_name&&n.sub_name&&n.sub_name!=='本地') suffix+='-'+n.sub_name
+      if(n.append_traffic) suffix+='-'+fmtBytes(n.traffic_used)
+      return base+suffix
+    }
+
+    async function api(path,opts={}){
+      try{
+        const r=await fetch('/api'+path,opts)
+        if(r.status===401&&!path.startsWith('/login')){loggedIn.value=false;return null}
+        const data=await r.json()
+        if(r.status>=400){notify(data.error||'请求失败','error');return null}
+        return data
+      }catch(e){notify(e.message,'error');return null}
+    }
+    const json=(body)=>({method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    const post=(body)=>({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+
+    async function checkAuth(){try{const r=await fetch('/api/me');if(r.ok){const d=await r.json();currentUsername.value=d.username||'admin';loggedIn.value=true;load()}}catch(e){}}
+    async function login(){
+      loginError.value=''
+      try{
+        const r=await fetch('/api/login',post(loginForm.value))
+        const d=await r.json()
+        if(r.ok){currentUsername.value=d.username||loginForm.value.username;loggedIn.value=true;load()}
+        else loginError.value=d.error||'登录失败'
+      }catch(e){loginError.value='网络错误'}
+    }
+    async function logout(){await api('/logout',{method:'POST'});loggedIn.value=false;loginForm.value={username:'',password:''}}
+
+    async function load(){
+      const [s,n,sv,p]=await Promise.all([api('/subscriptions'),api('/nodes'),api('/services'),api('/profiles')])
+      if(s) subscriptions.value=s
+      if(n) nodes.value=n
+      if(sv) services.value=sv
+      if(p) profiles.value=p
+    }
+    async function loadServices(){const r=await api('/services');if(r) services.value=r}
+    async function loadDnsPresets(){const r=await api('/dns-presets');if(r) dnsPresets.value=r}
+
+    // ── Subscription ──
+    async function addSub(){
+      const r=await api('/subscriptions',post(newSub.value))
+      if(r?.id){notify('订阅已添加');newSub.value={name:'',url:''};load()}
+    }
+    async function fetchSub(id){
+      notify('正在拉取...')
+      const r=await api(`/subscriptions/${id}/fetch`,{method:'POST'})
+      if(r?.ok){notify(`拉取成功，${r.count} 个节点`);load()}
+    }
+    async function delSub(id){if(!confirm('确定删除？'))return;await api(`/subscriptions/${id}`,{method:'DELETE'});notify('已删除');load()}
+    async function patchSub(s,fields){
+      await api(`/subscriptions/${s.id}`,json({...s,...fields}))
+      load()
+    }
+
+    // ── Subscription Edit ──
+    async function openEditSub(s){
+      subEditForm.value={id:s.id,name:s.name,url:s.url,exclude_keywords:s.exclude_keywords||'',content:''}
+      subEditModal.value=true
+      const r=await api(`/subscriptions/${s.id}/export`)
+      if(r&&r.content) subEditForm.value.content=r.content
+    }
+    async function saveEditSub(){
+      const f=subEditForm.value
+      await api(`/subscriptions/${f.id}`,json({name:f.name,url:f.url,exclude_keywords:f.exclude_keywords}))
+      if(f.content.trim()){
+        const r=await api(`/subscriptions/${f.id}/import`,post({content:f.content}))
+        if(r?.ok) notify(`导入成功，${r.count} 个节点`)
+      }
+      subEditModal.value=false;load()
+    }
+
+    // ── Node ──
+    async function toggleNode(id,enabled){await api(`/nodes/${id}`,json({enabled}));load()}
+    async function saveAlias(n,alias){
+      if(alias===n.alias) return
+      await api(`/nodes/${n.id}/alias`,json({alias}))
+      n.alias=alias
+      notify('别名已更新')
+    }
+
+    function openAddNode(){
+      nodeEditForm.value={id:null,name:'',type:'vless',server:'',port:443,raw_config:'',subscription_id:0}
+      nodeEditModal.value=true
+    }
+    async function openEditNode(n){
+      const r=await api(`/nodes/${n.id}/raw`)
+      if(!r) return
+      nodeEditForm.value={id:n.id,name:n.name,type:n.type,server:n.server,port:n.port,raw_config:r.raw_config||'',subscription_id:r.subscription_id||0}
+      nodeEditModal.value=true
+    }
+    async function saveNodeEdit(){
+      const f=nodeEditForm.value
+      if(f.id){
+        await api(`/nodes/${f.id}/edit`,json({raw_config:f.raw_config}))
+        notify('节点已更新')
+      }else{
+        let rawCfg=f.raw_config.trim()
+        if(!rawCfg){rawCfg=JSON.stringify({name:f.name,type:f.type,server:f.server,port:f.port})}
+        const r=await api('/nodes',post({name:f.name,type:f.type,server:f.server,port:f.port,raw_config:rawCfg}))
+        if(r?.ok) notify('节点已添加')
+      }
+      nodeEditModal.value=false;load()
+    }
+    async function delNode(id){if(!confirm('确定删除该节点？'))return;await api(`/nodes/${id}`,{method:'DELETE'});notify('已删除');load()}
+
+    async function loadAliasPresets(){const r=await api('/settings/alias-presets');if(r) aliasPresetsText.value=r.presets||''}
+    async function saveAliasPresets(){
+      await api('/settings/alias-presets',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({presets:aliasPresetsText.value})})
+      notify('预设已保存')
+    }
+    async function applyAliasPresets(){
+      const r=await api('/nodes/apply-alias-presets',{method:'POST'})
+      if(r) notify(`已应用，更新了 ${r.updated} 个节点`)
+      load()
+    }
+
+    // ── Service ──
+    function openAddSvc(){editingSvcId.value=null;svcForm.value={name:'',icon:'🌐',rule_url:'',rule_type:'remote',default_proxy:'自动选择',cached_rules:''};svcRulePreview.value='';svcModal.value=true}
+    async function editSvc(s){
+      editingSvcId.value=s.id
+      svcForm.value={name:s.name,icon:s.icon,rule_url:s.rule_url||'',rule_type:s.rule_type||'remote',default_proxy:s.default_proxy,cached_rules:''}
+      svcRulePreview.value=''
+      if(s.rule_type==='local'){
+        const r=await api(`/services/${s.id}/rules`)
+        if(r) svcForm.value.cached_rules=r.cached_rules||''
+      }
+      svcModal.value=true
+    }
+    async function saveSvc(){
+      const body={...svcForm.value}
+      if(editingSvcId.value){
+        await api(`/services/${editingSvcId.value}`,json(body))
+        notify('已更新')
+      }else{
+        await api('/services',post(body))
+        notify('已添加')
+      }
+      svcModal.value=false;loadServices()
+    }
+    async function delSvc(id){if(!confirm('确定删除该服务规则？'))return;await api(`/services/${id}`,{method:'DELETE'});notify('已删除');loadServices()}
+    async function fetchSvcRules(id){
+      notify('正在拉取规则...')
+      const r=await api(`/services/${id}/fetch`,{method:'POST'})
+      if(r?.ok) notify(`拉取成功，${r.rule_count} 条规则`)
+      loadServices()
+    }
+    async function toggleSvcEnabled(s){
+      await api(`/services/${s.id}`,json({enabled:!s.enabled}))
+      loadServices()
+    }
+    async function toggleSvcAutoRefresh(s){
+      await api(`/services/${s.id}`,json({auto_refresh:!s.auto_refresh}))
+      loadServices()
+    }
+    async function moveGlobalSvc(index,dir){
+      const list=[...services.value]
+      const other=index+dir
+      if(other<0||other>=list.length) return
+      ;[list[index],list[other]]=[list[other],list[index]]
+      services.value=list
+      const ids=list.map(s=>s.id)
+      await api('/services/reorder',post({ids}))
+    }
+    async function previewSvcRules(){
+      if(!editingSvcId.value) return
+      const r=await api(`/services/${editingSvcId.value}/rules`)
+      if(r) svcRulePreview.value=r.cached_rules||'暂无规则内容'
+    }
+
+    // ── DNS Preset ──
+    function openAddDns(){editingDnsId.value=null;dnsForm.value={name:'',config:''};dnsModal.value=true}
+    function editDns(d){editingDnsId.value=d.id;dnsForm.value={name:d.name,config:d.config};dnsModal.value=true}
+    async function saveDns(){
+      if(editingDnsId.value){
+        await api(`/dns-presets/${editingDnsId.value}`,json(dnsForm.value))
+        notify('已更新')
+      }else{
+        await api('/dns-presets',post(dnsForm.value))
+        notify('已添加')
+      }
+      dnsModal.value=false;loadDnsPresets()
+    }
+    async function delDns(id){if(!confirm('确定删除？'))return;await api(`/dns-presets/${id}`,{method:'DELETE'});notify('已删除');loadDnsPresets()}
+
+    // ── Profile ──
+    async function addProfile(){
+      const r=await api('/profiles',post(newProfile.value))
+      if(r?.id){notify('订阅分发已创建');newProfile.value={name:''};load()}
+    }
+    async function delProfile(id){if(!confirm('确定删除？'))return;await api(`/profiles/${id}`,{method:'DELETE'});notify('已删除');expandedProfile.value=null;load()}
+    async function patchProfile(id,fields){
+      await api(`/profiles/${id}`,json(fields))
+      const r=await api('/profiles')
+      if(r) profiles.value=r
+    }
+
+    async function expandProfile(id){
+      if(expandedProfile.value===id){expandedProfile.value=null;return}
+      expandedProfile.value=id
+      profilePreview.value=null
+      const [n,s]=await Promise.all([api(`/profiles/${id}/nodes`),api(`/profiles/${id}/services`)])
+      if(n) profileNodeData.value=n
+      if(s) profileSvcData.value=s
+    }
+    async function toggleProfileNode(nodeId,enabled){
+      await api(`/profiles/${expandedProfile.value}/nodes`,json({nodes:{[nodeId]:enabled}}))
+      const n=profileNodeData.value.find(x=>x.node_id===nodeId)
+      if(n) n.enabled=enabled
+    }
+    async function batchProfileNodes(enabled){
+      const nodes={}
+      profileNodeData.value.forEach(n=>{nodes[n.node_id]=enabled;n.enabled=enabled})
+      await api(`/profiles/${expandedProfile.value}/nodes`,json({nodes}))
+    }
+    async function batchProfileNodeGroup(subName,enabled){
+      const key=subName||'未分组'
+      const nodes={}
+      profileNodeData.value.filter(n=>(n.sub_name||'未分组')===key).forEach(n=>{nodes[n.node_id]=enabled;n.enabled=enabled})
+      await api(`/profiles/${expandedProfile.value}/nodes`,json({nodes}))
+    }
+    async function toggleProfileSvc(sgid,enabled){
+      await api(`/profiles/${expandedProfile.value}/services/${sgid}/toggle`,json({enabled}))
+      const s=profileSvcData.value.find(x=>x.service_group_id===sgid)
+      if(s) s.enabled=enabled
+    }
+    async function updateProfileSvcProxy(sgid,proxy){
+      await api(`/profiles/${expandedProfile.value}/services/${sgid}/proxy`,json({default_proxy:proxy}))
+      const s=profileSvcData.value.find(x=>x.service_group_id===sgid)
+      if(s) s.default_proxy_override=proxy
+    }
+    async function resetProfileSvcOrder(){
+      await api(`/profiles/${expandedProfile.value}/services/reset-order`,{method:'POST'})
+      const s=await api(`/profiles/${expandedProfile.value}/services`)
+      if(s) profileSvcData.value=s
+      notify('规则已重置')
+    }
+    async function moveProfileSvc(index,dir){
+      const list=[...profileSvcData.value]
+      const other=index+dir
+      if(other<0||other>=list.length) return
+      ;[list[index],list[other]]=[list[other],list[index]]
+      profileSvcData.value=list
+      const ids=list.map(s=>s.service_group_id)
+      await api(`/profiles/${expandedProfile.value}/services/reorder`,post({ids}))
+    }
+    async function previewProfileConfig(id){
+      if(profilePreview.value===id){profilePreview.value=null;return}
+      const r=await api(`/profiles/${id}/preview`)
+      if(r) profilePreviewContent.value=r.config||'# Empty config'
+      profilePreview.value=id
+    }
+
+    function copyUrl(token){navigator.clipboard?.writeText(subUrl(token));notify('链接已复制')}
+    function downloadConfig(token){const a=document.createElement('a');a.href=`/sub?token=${token}`;a.download='config.yaml';a.click()}
+    function openAccountModal(){pwdForm.value={old_password:'',new_password:'',new_username:''};showOldPwd.value=false;showNewPwd.value=false;pwdModal.value=true}
+    async function changePwd(){
+      const r=await api('/password',post(pwdForm.value))
+      if(r?.ok){
+        if(pwdForm.value.new_username) currentUsername.value=pwdForm.value.new_username
+        notify('账号设置已更新');pwdModal.value=false;pwdForm.value={old_password:'',new_password:'',new_username:''}
+      }
+    }
+
+    onMounted(checkAuth)
+
+    return {loggedIn,loginForm,loginError,tab,subscriptions,nodes,services,dnsPresets,profiles,
+      nodeFilter,nodeSubFilter,newSub,newProfile,toast,
+      svcModal,editingSvcId,svcForm,svcRulePreview,
+      dnsModal,editingDnsId,dnsForm,
+      pwdModal,pwdForm,currentUsername,showOldPwd,showNewPwd,
+      subEditModal,subEditForm,
+      nodeEditModal,nodeEditForm,showAliasPresets,aliasPresetsText,
+      expandedProfile,profileNodeData,profileSvcData,profilePreview,profilePreviewContent,
+      enabledNodes,filteredNodes,totalRules,subUrl,
+      groupedProfileNodes,profileEnabledNodeCount,profileEnabledNodes,profileEnabledSvcCount,
+      notify,fmtTraffic,fmtBytes,formatDate,isExpired,nodeDisplayName,
+      checkAuth,login,logout,load,loadServices,loadDnsPresets,
+      addSub,fetchSub,delSub,patchSub,openEditSub,saveEditSub,
+      toggleNode,saveAlias,openAddNode,openEditNode,saveNodeEdit,delNode,loadAliasPresets,saveAliasPresets,applyAliasPresets,
+      openAddSvc,editSvc,saveSvc,delSvc,fetchSvcRules,toggleSvcEnabled,toggleSvcAutoRefresh,moveGlobalSvc,previewSvcRules,
+      openAddDns,editDns,saveDns,delDns,
+      addProfile,delProfile,patchProfile,expandProfile,
+      toggleProfileNode,batchProfileNodes,batchProfileNodeGroup,
+      toggleProfileSvc,updateProfileSvcProxy,moveProfileSvc,resetProfileSvcOrder,previewProfileConfig,
+      copyUrl,downloadConfig,openAccountModal,changePwd}
+  }
+}).mount('#app')
+</script>
+</body>
+</html>
