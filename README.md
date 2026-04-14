@@ -32,14 +32,30 @@
 
 ## 快速开始
 
-### Docker 部署（推荐）
+### Docker Compose 部署（推荐）
+
+新建 `docker-compose.yaml`，粘贴以下内容：
+
+```yaml
+services:
+  subforge:
+    image: teacat99/subforge:latest
+    container_name: subforge
+    restart: unless-stopped
+    ports:
+      - "8080:8080"    # 左侧可改为自定义端口
+    volumes:
+      - subforge-data:/data
+    environment:
+      - TZ=Asia/Shanghai
+
+volumes:
+  subforge-data:
+```
+
+然后启动：
 
 ```bash
-# 克隆仓库
-git clone https://github.com/teacat99/SubForge.git
-cd SubForge
-
-# 启动服务
 docker compose up -d
 ```
 
@@ -47,13 +63,18 @@ docker compose up -d
 
 默认管理员账号：`admin` / `passwd`（首次登录后请立即修改）。
 
-### Docker 自定义端口
+> 也可以使用 GHCR 镜像：将 `teacat99/subforge:latest` 替换为 `ghcr.io/teacat99/subforge:latest`。
 
-编辑 `docker-compose.yaml` 中的端口映射：
+### Docker 命令行部署
 
-```yaml
-ports:
-  - "9090:8080"   # 将 9090 改为你想要的端口
+```bash
+docker run -d \
+  --name subforge \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -v subforge-data:/data \
+  -e TZ=Asia/Shanghai \
+  teacat99/subforge:latest
 ```
 
 ### 源码编译
