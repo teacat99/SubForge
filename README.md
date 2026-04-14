@@ -30,8 +30,6 @@
 |:---:|:---:|
 | ![规则](docs/screenshots/services.png) | ![分发](docs/screenshots/profiles.png) |
 
-> 截图目录位于 `docs/screenshots/`，请将实际截图文件放入该目录。
-
 ## 快速开始
 
 ### Docker 部署（推荐）

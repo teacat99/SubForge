@@ -16,3 +16,6 @@ test/fixtures/generated_config.yaml
 *.swp
 .DS_Store
 Thumbs.db
+
+# Markdown
+plan.md
