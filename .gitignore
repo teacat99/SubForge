@@ -1,5 +1,6 @@
 # Binary
 subforge
+server
 *.exe
 
 # Runtime data
