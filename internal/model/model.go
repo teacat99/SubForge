@@ -97,3 +97,10 @@ type Setting struct {
 	Key   string `gorm:"primaryKey" json:"key"`
 	Value string `gorm:"type:text" json:"value"`
 }
+
+type PublishedProfile struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Token     string    `gorm:"uniqueIndex" json:"token"`
+	Config    string    `gorm:"type:text" json:"-"`
+	UpdatedAt time.Time `json:"updated_at"`
+}

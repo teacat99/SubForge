@@ -2,6 +2,7 @@ package store
 
 import (
 	"github.com/teacat99/SubForge/internal/model"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	"golang.org/x/crypto/bcrypt"
@@ -29,6 +30,7 @@ func New(dbPath string) (*Store, error) {
 		&model.UserProfile{},
 		&model.DnsPreset{},
 		&model.AdminUser{},
+		&model.PublishedProfile{},
 	); err != nil {
 		return nil, err
 	}
@@ -571,4 +573,111 @@ func (s *Store) DeleteProfile(id uint) error {
 	s.db.Where("profile_id = ?", id).Delete(&model.ProfileService{})
 	s.db.Where("profile_id = ?", id).Delete(&model.ProfileNode{})
 	return s.db.Delete(&model.UserProfile{}, id).Error
+}
+
+// ── PublishedProfile ──
+
+func (s *Store) GetPublishedProfile(token string) (*model.PublishedProfile, error) {
+	var p model.PublishedProfile
+	if err := s.db.Where("token = ?", token).First(&p).Error; err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (s *Store) UpsertPublishedProfile(token, config string) (*model.PublishedProfile, error) {
+	var existing model.PublishedProfile
+	if err := s.db.Where("token = ?", token).First(&existing).Error; err == nil {
+		existing.Config = config
+		existing.UpdatedAt = time.Now()
+		return &existing, s.db.Save(&existing).Error
+	}
+	p := model.PublishedProfile{Token: token, Config: config, UpdatedAt: time.Now()}
+	return &p, s.db.Create(&p).Error
+}
+
+// ── Import / Export ──
+
+func (s *Store) ListSettings() ([]model.Setting, error) {
+	var settings []model.Setting
+	return settings, s.db.Find(&settings).Error
+}
+
+func (s *Store) ListAllProfileNodes() ([]model.ProfileNode, error) {
+	var pn []model.ProfileNode
+	return pn, s.db.Find(&pn).Error
+}
+
+func (s *Store) ListAllProfileServices() ([]model.ProfileService, error) {
+	var ps []model.ProfileService
+	return ps, s.db.Find(&ps).Error
+}
+
+func (s *Store) ListNodesWithRaw() ([]model.Node, error) {
+	var nodes []model.Node
+	return nodes, s.db.Order("id ASC").Find(&nodes).Error
+}
+
+func (s *Store) ImportData(
+	subs []model.Subscription,
+	nodes []model.Node,
+	groups []model.ServiceGroup,
+	profiles []model.UserProfile,
+	profileNodes []model.ProfileNode,
+	profileServices []model.ProfileService,
+	dnsPresets []model.DnsPreset,
+	settings []model.Setting,
+) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		tx.Where("1=1").Delete(&model.ProfileService{})
+		tx.Where("1=1").Delete(&model.ProfileNode{})
+		tx.Where("1=1").Delete(&model.UserProfile{})
+		tx.Where("1=1").Delete(&model.Node{})
+		tx.Where("1=1").Delete(&model.Subscription{})
+		tx.Where("1=1").Delete(&model.ServiceGroup{})
+		tx.Where("1=1").Delete(&model.DnsPreset{})
+		tx.Where("1=1").Delete(&model.Setting{})
+
+		if len(subs) > 0 {
+			if err := tx.Create(&subs).Error; err != nil {
+				return err
+			}
+		}
+		if len(nodes) > 0 {
+			if err := tx.Create(&nodes).Error; err != nil {
+				return err
+			}
+		}
+		if len(groups) > 0 {
+			if err := tx.Create(&groups).Error; err != nil {
+				return err
+			}
+		}
+		if len(profiles) > 0 {
+			if err := tx.Create(&profiles).Error; err != nil {
+				return err
+			}
+		}
+		if len(profileNodes) > 0 {
+			if err := tx.Create(&profileNodes).Error; err != nil {
+				return err
+			}
+		}
+		if len(profileServices) > 0 {
+			if err := tx.Create(&profileServices).Error; err != nil {
+				return err
+			}
+		}
+		if len(dnsPresets) > 0 {
+			if err := tx.Create(&dnsPresets).Error; err != nil {
+				return err
+			}
+		}
+		if len(settings) > 0 {
+			if err := tx.Create(&settings).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

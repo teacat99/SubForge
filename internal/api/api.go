@@ -23,19 +23,34 @@ import (
 type GinContext = gin.Context
 
 type Handler struct {
-	store        *store.Store
-	sessionToken string
-	mu           sync.Mutex
+	store          *store.Store
+	sessionToken   string
+	mu             sync.Mutex
+	loginEnabled   bool
+	localEnabled   bool
+	defaultDnsYAML string
 }
 
-func NewRouter(s *store.Store) *gin.Engine {
-	h := &Handler{store: s}
+func NewRouter(s *store.Store, loginEnabled, localEnabled bool, defaultDnsYAML string) *gin.Engine {
+	h := &Handler{store: s, loginEnabled: loginEnabled, localEnabled: localEnabled, defaultDnsYAML: defaultDnsYAML}
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
 
+	r.GET("/api/mode", h.getMode)
 	r.POST("/api/login", h.login)
 	r.GET("/sub", h.generateConfig)
+
+	if localEnabled {
+		proxy := r.Group("/api/proxy")
+		{
+			proxy.GET("/seed", h.getSeedData)
+			proxy.POST("/fetch-sub", h.proxyFetchSubscription)
+			proxy.POST("/fetch-rules", h.proxyFetchRules)
+			proxy.POST("/generate-config", h.proxyGenerateConfig)
+			proxy.POST("/publish-profile", h.proxyPublishProfile)
+		}
+	}
 
 	api := r.Group("/api")
 	api.Use(h.authMiddleware())
@@ -92,6 +107,9 @@ func NewRouter(s *store.Store) *gin.Engine {
 		api.POST("/profiles/:id/services/reorder", h.reorderProfileServices)
 		api.POST("/profiles/:id/services/reset-order", h.resetProfileServiceOrder)
 		api.GET("/profiles/:id/preview", h.previewProfileConfig)
+
+		api.GET("/export", h.exportAllData)
+		api.POST("/import", h.importAllData)
 	}
 
 	return r
@@ -186,6 +204,10 @@ func (h *Handler) changePassword(c *gin.Context) {
 
 func (h *Handler) authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !h.loginEnabled {
+			c.Next()
+			return
+		}
 		cookie, err := c.Cookie("session")
 		if err != nil || cookie == "" {
 			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
@@ -200,6 +222,13 @@ func (h *Handler) authMiddleware() gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+func (h *Handler) getMode(c *gin.Context) {
+	c.JSON(200, gin.H{
+		"login_enabled": h.loginEnabled,
+		"local_enabled": h.localEnabled,
+	})
 }
 
 func (h *Handler) health(c *gin.Context) {
@@ -1293,6 +1322,13 @@ func (h *Handler) generateConfig(c *gin.Context) {
 		c.String(403, "missing token")
 		return
 	}
+
+	if pp, err := h.store.GetPublishedProfile(token); err == nil {
+		c.Header("Content-Disposition", "attachment; filename=config.yaml")
+		c.Data(200, "text/yaml; charset=utf-8", []byte(pp.Config))
+		return
+	}
+
 	profile, err := h.store.GetProfileByToken(token)
 	if err != nil {
 		c.String(403, "invalid token")
@@ -1348,6 +1384,319 @@ func (h *Handler) previewProfileConfig(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"config": string(data)})
+}
+
+// ── Proxy (Local Mode) ──
+
+func (h *Handler) getSeedData(c *gin.Context) {
+	groups := rule.DefaultServiceGroups()
+	type seedGroup struct {
+		Name         string `json:"name"`
+		Icon         string `json:"icon"`
+		RuleType     string `json:"rule_type"`
+		RuleURL      string `json:"rule_url"`
+		DefaultProxy string `json:"default_proxy"`
+		CachedRules  string `json:"cached_rules"`
+		SortOrder    int    `json:"sort_order"`
+		Enabled      bool   `json:"enabled"`
+		AutoRefresh  bool   `json:"auto_refresh"`
+		IntervalSec  int    `json:"interval_sec"`
+		Builtin      bool   `json:"builtin"`
+	}
+	sg := make([]seedGroup, len(groups))
+	for i, g := range groups {
+		sg[i] = seedGroup{
+			Name: g.Name, Icon: g.Icon, RuleType: g.RuleType,
+			RuleURL: g.RuleURL, DefaultProxy: g.DefaultProxy,
+			CachedRules: g.CachedRules, SortOrder: g.SortOrder,
+			Enabled: g.Enabled, AutoRefresh: g.AutoRefresh,
+			IntervalSec: g.IntervalSec, Builtin: g.Builtin,
+		}
+	}
+	c.JSON(200, gin.H{
+		"service_groups": sg,
+		"dns_presets": []gin.H{
+			{"name": "DNS 1.1.1.1", "config": h.defaultDnsYAML, "builtin": true},
+		},
+	})
+}
+
+func (h *Handler) proxyFetchSubscription(c *gin.Context) {
+	var req struct {
+		URL             string `json:"url"`
+		ExcludeKeywords string `json:"exclude_keywords"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	if req.URL == "" {
+		c.JSON(400, gin.H{"error": "url required"})
+		return
+	}
+	sub := &model.Subscription{URL: req.URL, ExcludeKeywords: req.ExcludeKeywords}
+	nodes, info, err := subscription.Fetch(sub)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	nodes = filterExcludedNodes(nodes, req.ExcludeKeywords)
+
+	type proxyNode struct {
+		Name      string `json:"name"`
+		Type      string `json:"type"`
+		Server    string `json:"server"`
+		Port      int    `json:"port"`
+		RawConfig string `json:"raw_config"`
+		Enabled   bool   `json:"enabled"`
+	}
+	result := make([]proxyNode, len(nodes))
+	for i, n := range nodes {
+		result[i] = proxyNode{Name: n.Name, Type: n.Type, Server: n.Server, Port: n.Port, RawConfig: n.RawConfig, Enabled: n.Enabled}
+	}
+	resp := gin.H{"nodes": result}
+	if info != nil {
+		resp["traffic_info"] = gin.H{
+			"upload": info.Upload, "download": info.Download,
+			"total": info.Total, "expire": info.Expire,
+		}
+	}
+	c.JSON(200, resp)
+}
+
+func (h *Handler) proxyFetchRules(c *gin.Context) {
+	var req struct {
+		RuleURL     string `json:"rule_url"`
+		CachedRules string `json:"cached_rules"`
+		RuleType    string `json:"rule_type"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	ruleType := req.RuleType
+	if ruleType == "" {
+		ruleType = "remote"
+	}
+	sg := &model.ServiceGroup{RuleURL: req.RuleURL, RuleType: ruleType, CachedRules: req.CachedRules}
+	if err := rule.FetchRules(sg); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"cached_rules": sg.CachedRules, "rule_count": sg.RuleCount})
+}
+
+func (h *Handler) proxyGenerateConfig(c *gin.Context) {
+	var req struct {
+		Nodes         []struct {
+			model.Node
+			RawConfig string `json:"raw_config"`
+		} `json:"nodes"`
+		Subscriptions []model.Subscription `json:"subscriptions"`
+		ServiceGroups []struct {
+			model.ServiceGroup
+			CachedRules string `json:"cached_rules"`
+		} `json:"service_groups"`
+		CatchAll  bool   `json:"catch_all"`
+		GeoipCN   bool   `json:"geoip_cn"`
+		DnsConfig string `json:"dns_config"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	nodes := make([]model.Node, len(req.Nodes))
+	for i, n := range req.Nodes {
+		nodes[i] = n.Node
+		nodes[i].RawConfig = n.RawConfig
+	}
+	groups := make([]model.ServiceGroup, len(req.ServiceGroups))
+	for i, g := range req.ServiceGroups {
+		groups[i] = g.ServiceGroup
+		groups[i].CachedRules = g.CachedRules
+	}
+	opts := generator.Options{
+		Nodes:         nodes,
+		Subscriptions: req.Subscriptions,
+		ServiceGroups: groups,
+		CatchAll:      req.CatchAll,
+		GeoipCN:       req.GeoipCN,
+		DnsConfig:     req.DnsConfig,
+	}
+	data, err := generator.Generate(opts)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"config": string(data)})
+}
+
+func (h *Handler) proxyPublishProfile(c *gin.Context) {
+	var req struct {
+		Nodes         []struct {
+			model.Node
+			RawConfig string `json:"raw_config"`
+		} `json:"nodes"`
+		Subscriptions []model.Subscription `json:"subscriptions"`
+		ServiceGroups []struct {
+			model.ServiceGroup
+			CachedRules string `json:"cached_rules"`
+		} `json:"service_groups"`
+		CatchAll  bool   `json:"catch_all"`
+		GeoipCN   bool   `json:"geoip_cn"`
+		DnsConfig string `json:"dns_config"`
+		Token     string `json:"token"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	nodes := make([]model.Node, len(req.Nodes))
+	for i, n := range req.Nodes {
+		nodes[i] = n.Node
+		nodes[i].RawConfig = n.RawConfig
+	}
+	groups := make([]model.ServiceGroup, len(req.ServiceGroups))
+	for i, g := range req.ServiceGroups {
+		groups[i] = g.ServiceGroup
+		groups[i].CachedRules = g.CachedRules
+	}
+	opts := generator.Options{
+		Nodes:         nodes,
+		Subscriptions: req.Subscriptions,
+		ServiceGroups: groups,
+		CatchAll:      req.CatchAll,
+		GeoipCN:       req.GeoipCN,
+		DnsConfig:     req.DnsConfig,
+	}
+	data, err := generator.Generate(opts)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	token := req.Token
+	if token == "" {
+		token = generateToken()
+	}
+	pp, err := h.store.UpsertPublishedProfile(token, string(data))
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"token": pp.Token, "url": "/sub?token=" + pp.Token})
+}
+
+// ── Import / Export ──
+
+type exportData struct {
+	Version         int                    `json:"version"`
+	ExportedAt      string                 `json:"exported_at"`
+	Subscriptions   []model.Subscription   `json:"subscriptions"`
+	Nodes           []exportNode           `json:"nodes"`
+	ServiceGroups   []exportServiceGroup   `json:"service_groups"`
+	Profiles        []model.UserProfile    `json:"profiles"`
+	ProfileNodes    []model.ProfileNode    `json:"profile_nodes"`
+	ProfileServices []model.ProfileService `json:"profile_services"`
+	DnsPresets      []model.DnsPreset      `json:"dns_presets"`
+	AliasPresets    string                 `json:"alias_presets"`
+	Settings        map[string]string      `json:"settings"`
+}
+
+type exportNode struct {
+	model.Node
+	RawConfig string `json:"raw_config"`
+}
+
+type exportServiceGroup struct {
+	model.ServiceGroup
+	CachedRules string `json:"cached_rules"`
+}
+
+func (h *Handler) exportAllData(c *gin.Context) {
+	subs, _ := h.store.ListSubscriptions()
+	nodes, _ := h.store.ListNodesWithRaw()
+	groups, _ := h.store.ListServiceGroups()
+	profiles, _ := h.store.ListProfiles()
+	profileNodes, _ := h.store.ListAllProfileNodes()
+	profileServices, _ := h.store.ListAllProfileServices()
+	dnsPresets, _ := h.store.ListDnsPresets()
+	settings, _ := h.store.ListSettings()
+	aliasPresets, _ := h.store.GetSetting("alias_presets")
+
+	en := make([]exportNode, len(nodes))
+	for i, n := range nodes {
+		en[i] = exportNode{Node: n, RawConfig: n.RawConfig}
+	}
+	eg := make([]exportServiceGroup, len(groups))
+	for i, g := range groups {
+		eg[i] = exportServiceGroup{ServiceGroup: g, CachedRules: g.CachedRules}
+	}
+	settingsMap := make(map[string]string)
+	for _, s := range settings {
+		if s.Key != "alias_presets" {
+			settingsMap[s.Key] = s.Value
+		}
+	}
+
+	c.JSON(200, exportData{
+		Version:         1,
+		ExportedAt:      time.Now().Format(time.RFC3339),
+		Subscriptions:   subs,
+		Nodes:           en,
+		ServiceGroups:   eg,
+		Profiles:        profiles,
+		ProfileNodes:    profileNodes,
+		ProfileServices: profileServices,
+		DnsPresets:      dnsPresets,
+		AliasPresets:    aliasPresets,
+		Settings:        settingsMap,
+	})
+}
+
+func (h *Handler) importAllData(c *gin.Context) {
+	var data exportData
+	if err := c.ShouldBindJSON(&data); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	nodes := make([]model.Node, len(data.Nodes))
+	for i, n := range data.Nodes {
+		nodes[i] = n.Node
+		nodes[i].RawConfig = n.RawConfig
+	}
+	groups := make([]model.ServiceGroup, len(data.ServiceGroups))
+	for i, g := range data.ServiceGroups {
+		groups[i] = g.ServiceGroup
+		groups[i].CachedRules = g.CachedRules
+	}
+
+	var settings []model.Setting
+	for k, v := range data.Settings {
+		settings = append(settings, model.Setting{Key: k, Value: v})
+	}
+	if data.AliasPresets != "" {
+		settings = append(settings, model.Setting{Key: "alias_presets", Value: data.AliasPresets})
+	}
+
+	if err := h.store.ImportData(
+		data.Subscriptions, nodes, groups,
+		data.Profiles, data.ProfileNodes, data.ProfileServices,
+		data.DnsPresets, settings,
+	); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{
+		"ok":      true,
+		"summary": gin.H{
+			"subscriptions": len(data.Subscriptions),
+			"nodes":         len(data.Nodes),
+			"services":      len(data.ServiceGroups),
+			"profiles":      len(data.Profiles),
+			"dns_presets":   len(data.DnsPresets),
+		},
+	})
 }
 
 // ── Helpers ──

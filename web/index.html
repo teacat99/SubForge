@@ -99,14 +99,19 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 <div id="app">
 
 <!-- Login -->
-<div v-if="!loggedIn" class="login-page">
+<div v-if="!loggedIn && modeLoaded" class="login-page">
   <div class="login-card">
     <h2>SubForge</h2>
-    <p>请登录以管理订阅和规则</p>
-    <input v-model="loginForm.username" placeholder="用户名" @keyup.enter="login">
-    <input v-model="loginForm.password" type="password" placeholder="密码" @keyup.enter="login">
-    <button class="btn btn-primary" @click="login">登录</button>
-    <div v-if="loginError" class="login-error">{{loginError}}</div>
+    <template v-if="serverMode.login_enabled && activeMode==='login'">
+      <p>请登录以管理订阅和规则</p>
+      <input v-model="loginForm.username" placeholder="用户名" @keyup.enter="login">
+      <input v-model="loginForm.password" type="password" placeholder="密码" @keyup.enter="login">
+      <button class="btn btn-primary" @click="login">登录</button>
+      <div v-if="loginError" class="login-error">{{loginError}}</div>
+      <div v-if="serverMode.local_enabled" style="margin-top:16px;text-align:center;border-top:1px solid #e5e7eb;padding-top:16px">
+        <button class="btn btn-ghost" @click="switchToLocal" style="width:100%">切换本地模式</button>
+      </div>
+    </template>
   </div>
 </div>
 
@@ -121,8 +126,17 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
     <a :class="{active:tab==='profiles'}" @click="tab='profiles';loadDnsPresets()">订阅分发</a>
   </div>
   <div class="user-menu">
-    <button class="btn" @click="openAccountModal">账号设置</button>
-    <button class="btn" @click="logout">登出</button>
+    <template v-if="activeMode==='login'">
+      <button class="btn" @click="openAccountModal">账号设置</button>
+      <button class="btn" v-if="serverMode.local_enabled" @click="switchToLocal">本地模式</button>
+      <button class="btn" @click="openImportExport">数据管理</button>
+      <button class="btn" @click="logout">登出</button>
+    </template>
+    <template v-else>
+      <span style="color:rgba(255,255,255,.7);font-size:13px;padding:4px 8px;background:rgba(255,255,255,.1);border-radius:4px">本地模式</span>
+      <button class="btn" @click="openImportExport">数据管理</button>
+      <button class="btn" v-if="serverMode.login_enabled" @click="switchToLogin">切换登录</button>
+    </template>
   </div>
 </nav>
 
@@ -326,9 +340,15 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
         </div>
       </div>
       <div class="sub-url" style="margin-top:12px">
-        <input :value="subUrl(p.token)" readonly @click="$event.target.select()">
-        <button class="btn btn-ghost" @click="copyUrl(p.token)">复制</button>
-        <button class="btn btn-ghost btn-sm" @click="downloadConfig(p.token)">下载</button>
+        <input :value="subUrl(p.published_token||p.token)" readonly @click="$event.target.select()">
+        <button class="btn btn-ghost" @click="copyUrl(p.published_token||p.token)">复制</button>
+        <template v-if="activeMode==='local'">
+          <button class="btn btn-primary btn-sm" @click="publishProfile(p)">{{p.published_token?'更新发布':'发布'}}</button>
+          <button class="btn btn-ghost btn-sm" @click="downloadLocalConfig(p)">下载</button>
+        </template>
+        <template v-else>
+          <button class="btn btn-ghost btn-sm" @click="downloadConfig(p.token)">下载</button>
+        </template>
       </div>
 
       <!-- Profile Editor -->
@@ -538,6 +558,42 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
   </div>
 </div>
 
+<!-- Import/Export Modal -->
+<div v-if="ieModal" class="modal-overlay" @click.self="ieModal=false">
+  <div class="modal" style="width:500px">
+    <h3>数据管理</h3>
+    <div style="display:flex;gap:12px;margin-bottom:20px">
+      <button class="btn btn-primary" @click="doExport" style="flex:1">导出配置</button>
+    </div>
+    <div style="border:2px dashed #d1d5db;border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:.2s" @click="$refs.importFile.click()" @dragover.prevent @drop.prevent="handleImportDrop">
+      <input type="file" ref="importFile" accept=".json" style="display:none" @change="handleImportFile">
+      <div style="color:#6b7280;font-size:14px">点击选择或拖放 JSON 文件导入配置</div>
+    </div>
+    <template v-if="importPreview">
+      <div style="margin-top:16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px">
+        <h4 style="margin:0 0 12px;font-size:14px">导入预览</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+          <div>订阅源: <strong>{{importPreview.subscriptions}}</strong></div>
+          <div>节点: <strong>{{importPreview.nodes}}</strong></div>
+          <div>服务规则: <strong>{{importPreview.services}}</strong></div>
+          <div>订阅分发: <strong>{{importPreview.profiles}}</strong></div>
+          <div>DNS预设: <strong>{{importPreview.dns_presets}}</strong></div>
+        </div>
+        <div style="margin-top:16px;padding:12px;background:#fef3c7;border-radius:6px;font-size:13px;color:#92400e">
+          导入将覆盖现有配置（账号信息不会覆盖），是否继续？
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+          <button class="btn btn-ghost" @click="importPreview=null;importRawData=null">取消</button>
+          <button class="btn btn-danger" @click="doImport">确认导入</button>
+        </div>
+      </div>
+    </template>
+    <div style="display:flex;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-ghost" @click="ieModal=false">关闭</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div v-if="toast.show" class="toast" :class="toast.type">{{toast.msg}}</div>
 </div>
@@ -546,6 +602,10 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 const {createApp,ref,computed,onMounted} = Vue
 createApp({
   setup(){
+    const serverMode = ref({login_enabled:true,local_enabled:false})
+    const activeMode = ref('login')
+    const modeLoaded = ref(false)
+
     const loggedIn = ref(false)
     const loginForm = ref({username:'',password:''})
     const loginError = ref('')
@@ -583,6 +643,10 @@ createApp({
     const nodeEditForm = ref({id:null,name:'',type:'vless',server:'',port:443,raw_config:'',subscription_id:0})
     const showAliasPresets = ref(false)
     const aliasPresetsText = ref('')
+
+    const ieModal = ref(false)
+    const importPreview = ref(null)
+    const importRawData = ref(null)
 
     const expandedProfile = ref(null)
     const profileNodeData = ref([])
@@ -639,7 +703,400 @@ createApp({
       return base+suffix
     }
 
+    // ── localStorage Engine ──
+    const LS_KEY='sf_data'
+    function getLD(){const r=localStorage.getItem(LS_KEY);return r?JSON.parse(r):null}
+    function setLD(d){localStorage.setItem(LS_KEY,JSON.stringify(d))}
+    function emptyLD(){return{_nextId:1,subscriptions:[],nodes:[],services:[],profiles:[],profile_nodes:[],profile_services:[],dns_presets:[],alias_presets:'',settings:{}}}
+    function nid(d){return d._nextId++}
+
+    async function initLocalStore(){
+      let d=getLD()
+      if(d) return
+      d=emptyLD()
+      try{
+        const seed=await fetch('/api/proxy/seed').then(r=>r.json())
+        if(seed.service_groups) for(const sg of seed.service_groups){sg.id=nid(d);sg.rule_count=0;d.services.push(sg)}
+        if(seed.dns_presets) for(const dp of seed.dns_presets){dp.id=nid(d);d.dns_presets.push(dp)}
+      }catch(e){}
+      setLD(d)
+    }
+
+    function localApi(path,opts={}){
+      const method=(opts.method||'GET').toUpperCase()
+      const body=opts.body?JSON.parse(opts.body):null
+      const pidMatch=path.match(/^\/(\w[\w-]*)\/(\d+)(.*)/)
+      const id=pidMatch?+pidMatch[2]:0
+      const rest=pidMatch?pidMatch[3]:''
+      const d=getLD()
+      if(!d) return null
+
+      // ── Subscriptions ──
+      if(path==='/subscriptions'&&method==='GET'){
+        const subs=d.subscriptions.map(s=>({...s,node_count:d.nodes.filter(n=>n.subscription_id===s.id).length}))
+        return subs
+      }
+      if(path==='/subscriptions'&&method==='POST'){
+        const s={...body,id:nid(d),sort_order:d.subscriptions.length+1,created_at:new Date().toISOString(),node_count:0}
+        if(!s.interval_sec)s.interval_sec=86400
+        if(!s.url){s.auto_refresh=false}else{s.auto_refresh=true}
+        if(!s.exclude_keywords)s.exclude_keywords='剩余流量'
+        d.subscriptions.push(s);setLD(d)
+        return s
+      }
+      if(pidMatch&&pidMatch[1]==='subscriptions'&&rest===''&&method==='PATCH'){
+        const idx=d.subscriptions.findIndex(s=>s.id===id)
+        if(idx>=0){Object.assign(d.subscriptions[idx],body);if(!d.subscriptions[idx].url)d.subscriptions[idx].auto_refresh=false;setLD(d)}
+        return d.subscriptions[idx]||null
+      }
+      if(pidMatch&&pidMatch[1]==='subscriptions'&&rest===''&&method==='DELETE'){
+        d.nodes=d.nodes.filter(n=>n.subscription_id!==id)
+        d.profile_nodes=d.profile_nodes.filter(pn=>!d.nodes.some(n=>n.id===pn.node_id))
+        d.subscriptions=d.subscriptions.filter(s=>s.id!==id);setLD(d)
+        return{ok:true}
+      }
+      if(path==='/subscriptions/reorder'&&method==='POST'){
+        const ids=body.ids
+        ids.forEach((sid,i)=>{const s=d.subscriptions.find(x=>x.id===sid);if(s)s.sort_order=i+1})
+        d.subscriptions.sort((a,b)=>a.sort_order-b.sort_order);setLD(d)
+        return{ok:true}
+      }
+      if(pidMatch&&pidMatch[1]==='subscriptions'&&rest==='/fetch'&&method==='POST'){
+        return localFetchSub(d,id)
+      }
+      if(pidMatch&&pidMatch[1]==='subscriptions'&&rest==='/import'&&method==='POST'){
+        return localImportSub(d,id,body)
+      }
+      if(pidMatch&&pidMatch[1]==='subscriptions'&&rest==='/export'&&method==='GET'){
+        const ns=d.nodes.filter(n=>n.subscription_id===id)
+        const proxies=ns.map(n=>{try{return JSON.parse(n.raw_config)}catch(e){return null}}).filter(Boolean)
+        return{content:'proxies:\n'+proxies.map(p=>'  - '+JSON.stringify(p)).join('\n')}
+      }
+
+      // ── Nodes ──
+      if(path==='/nodes'&&method==='GET') return localListNodes(d)
+      if(path==='/nodes'&&method==='POST'){
+        const n={...body,id:nid(d),subscription_id:0,enabled:true}
+        d.nodes.push(n)
+        for(const p of d.profiles) d.profile_nodes.push({id:nid(d),profile_id:p.id,node_id:n.id,enabled:true})
+        setLD(d);return{ok:true,id:n.id}
+      }
+      if(pidMatch&&pidMatch[1]==='nodes'&&rest===''&&method==='PATCH'){
+        const n=d.nodes.find(x=>x.id===id)
+        if(n&&body.enabled!==undefined)n.enabled=body.enabled
+        setLD(d);return{ok:true}
+      }
+      if(pidMatch&&pidMatch[1]==='nodes'&&rest==='/alias'&&method==='PATCH'){
+        const n=d.nodes.find(x=>x.id===id)
+        if(n)n.alias=body.alias
+        setLD(d);return{ok:true}
+      }
+      if(pidMatch&&pidMatch[1]==='nodes'&&rest==='/edit'&&method==='PATCH'){
+        const n=d.nodes.find(x=>x.id===id)
+        if(n){
+          n.raw_config=body.raw_config
+          try{const p=JSON.parse(body.raw_config);if(p.name)n.name=p.name;if(p.type)n.type=p.type;if(p.server)n.server=p.server;if(p.port)n.port=p.port}catch(e){}
+        }
+        setLD(d);return{ok:true}
+      }
+      if(pidMatch&&pidMatch[1]==='nodes'&&rest==='/raw'&&method==='GET'){
+        const n=d.nodes.find(x=>x.id===id)
+        return n?{id:n.id,name:n.name,type:n.type,server:n.server,port:n.port,raw_config:n.raw_config,subscription_id:n.subscription_id}:null
+      }
+      if(pidMatch&&pidMatch[1]==='nodes'&&rest===''&&method==='DELETE'){
+        d.profile_nodes=d.profile_nodes.filter(pn=>pn.node_id!==id)
+        d.nodes=d.nodes.filter(n=>n.id!==id);setLD(d)
+        return{ok:true}
+      }
+      if(path==='/nodes/apply-alias-presets'&&method==='POST'){
+        const presets=parseLocalAliasPresets(d.alias_presets)
+        let updated=0
+        for(const n of d.nodes){
+          if(n.alias) continue
+          for(const p of presets){if(n.name.includes(p.keyword)){n.alias=p.alias;updated++;break}}
+        }
+        setLD(d);return{ok:true,updated}
+      }
+
+      // ── Settings ──
+      if(path==='/settings/alias-presets'&&method==='GET') return{presets:d.alias_presets}
+      if(path==='/settings/alias-presets'&&method==='PUT'){d.alias_presets=body.presets;setLD(d);return{ok:true}}
+
+      // ── Services ──
+      if(path==='/services'&&method==='GET'){
+        return d.services.map(s=>({id:s.id,name:s.name,icon:s.icon,rule_type:s.rule_type,rule_url:s.rule_url,default_proxy:s.default_proxy,sort_order:s.sort_order,rule_count:s.rule_count||0,enabled:s.enabled,auto_refresh:s.auto_refresh,interval_sec:s.interval_sec,last_fetched:s.last_fetched,builtin:s.builtin}))
+      }
+      if(path==='/services'&&method==='POST'){
+        const g={...body,id:nid(d),sort_order:d.services.length+1,rule_count:0,enabled:true,created_at:new Date().toISOString()}
+        if(!g.default_proxy)g.default_proxy='自动选择'
+        if(!g.rule_type)g.rule_type='remote'
+        if(!g.interval_sec)g.interval_sec=86400
+        g.auto_refresh=g.rule_type==='remote'
+        d.services.push(g)
+        for(const p of d.profiles) d.profile_services.push({id:nid(d),profile_id:p.id,service_group_id:g.id,enabled:false,sort_order:g.sort_order})
+        setLD(d)
+        if(g.rule_type==='local'&&g.cached_rules){localParseRuleCount(d,g)}
+        return{ok:true,id:g.id}
+      }
+      if(path==='/services/reorder'&&method==='POST'){
+        body.ids.forEach((sid,i)=>{const s=d.services.find(x=>x.id===sid);if(s)s.sort_order=i+1})
+        d.services.sort((a,b)=>a.sort_order-b.sort_order);setLD(d)
+        return{ok:true}
+      }
+      if(pidMatch&&pidMatch[1]==='services'&&rest===''&&method==='PATCH'){
+        const g=d.services.find(x=>x.id===id)
+        if(g){
+          if(body.name)g.name=body.name;if(body.icon)g.icon=body.icon
+          if(body.rule_type)g.rule_type=body.rule_type;if(body.rule_url)g.rule_url=body.rule_url
+          if(body.default_proxy)g.default_proxy=body.default_proxy
+          if(body.auto_refresh!==undefined)g.auto_refresh=body.auto_refresh
+          if(body.enabled!==undefined)g.enabled=body.enabled
+          if(body.interval_sec>0)g.interval_sec=body.interval_sec
+          if(g.rule_type==='local'&&body.cached_rules){g.cached_rules=body.cached_rules;localParseRuleCount(d,g)}
+          setLD(d)
+        }
+        return{ok:true}
+      }
+      if(pidMatch&&pidMatch[1]==='services'&&rest===''&&method==='DELETE'){
+        d.profile_services=d.profile_services.filter(ps=>ps.service_group_id!==id)
+        d.services=d.services.filter(s=>s.id!==id);setLD(d)
+        return{ok:true}
+      }
+      if(pidMatch&&pidMatch[1]==='services'&&rest==='/fetch'&&method==='POST'){
+        return localFetchServiceRules(d,id)
+      }
+      if(pidMatch&&pidMatch[1]==='services'&&rest==='/rules'&&method==='GET'){
+        const g=d.services.find(x=>x.id===id)
+        return g?{rules:[],cached_rules:g.cached_rules||'',rule_count:g.rule_count||0}:null
+      }
+
+      // ── DNS Presets ──
+      if(path==='/dns-presets'&&method==='GET') return d.dns_presets
+      if(path==='/dns-presets'&&method==='POST'){const p={...body,id:nid(d),created_at:new Date().toISOString()};d.dns_presets.push(p);setLD(d);return p}
+      if(pidMatch&&pidMatch[1]==='dns-presets'&&rest===''&&method==='PATCH'){
+        const p=d.dns_presets.find(x=>x.id===id)
+        if(p){if(body.name)p.name=body.name;if(body.config)p.config=body.config;setLD(d)}
+        return p
+      }
+      if(pidMatch&&pidMatch[1]==='dns-presets'&&rest===''&&method==='DELETE'){
+        d.dns_presets=d.dns_presets.filter(x=>x.id!==id);setLD(d);return{ok:true}
+      }
+
+      // ── Profiles ──
+      if(path==='/profiles'&&method==='GET') return d.profiles
+      if(path==='/profiles'&&method==='POST'){
+        const p={...body,id:nid(d),token:localToken(),enabled:true,catch_all:false,geoip_cn:true,sort_order:d.profiles.length+1,created_at:new Date().toISOString()}
+        d.profiles.push(p)
+        for(const n of d.nodes) d.profile_nodes.push({id:nid(d),profile_id:p.id,node_id:n.id,enabled:true})
+        for(const s of d.services) d.profile_services.push({id:nid(d),profile_id:p.id,service_group_id:s.id,enabled:s.enabled,sort_order:s.sort_order})
+        setLD(d);return p
+      }
+      if(path==='/profiles/reorder'&&method==='POST'){
+        body.ids.forEach((pid,i)=>{const p=d.profiles.find(x=>x.id===pid);if(p)p.sort_order=i+1})
+        d.profiles.sort((a,b)=>a.sort_order-b.sort_order);setLD(d)
+        return{ok:true}
+      }
+      if(pidMatch&&pidMatch[1]==='profiles'&&rest===''&&method==='PATCH'){
+        const p=d.profiles.find(x=>x.id===id)
+        if(p){
+          if(body.name!==undefined)p.name=body.name
+          if(body.enabled!==undefined)p.enabled=body.enabled
+          if(body.expires_at!==undefined)p.expires_at=body.expires_at
+          if(body.catch_all!==undefined)p.catch_all=body.catch_all
+          if(body.geoip_cn!==undefined)p.geoip_cn=body.geoip_cn
+          if(body.dns_preset_id!==undefined)p.dns_preset_id=body.dns_preset_id
+          setLD(d)
+        }
+        return p
+      }
+      if(pidMatch&&pidMatch[1]==='profiles'&&rest===''&&method==='DELETE'){
+        d.profile_nodes=d.profile_nodes.filter(pn=>pn.profile_id!==id)
+        d.profile_services=d.profile_services.filter(ps=>ps.profile_id!==id)
+        d.profiles=d.profiles.filter(p=>p.id!==id);setLD(d)
+        return{ok:true}
+      }
+      if(pidMatch&&pidMatch[1]==='profiles'&&rest==='/nodes'&&method==='GET'){
+        return localListProfileNodes(d,id)
+      }
+      if(pidMatch&&pidMatch[1]==='profiles'&&rest==='/nodes'&&method==='PATCH'){
+        for(const[nid_s,en] of Object.entries(body.nodes)){
+          const nid_v=+nid_s
+          const existing=d.profile_nodes.find(pn=>pn.profile_id===id&&pn.node_id===nid_v)
+          if(existing)existing.enabled=en
+          else d.profile_nodes.push({id:nid(d),profile_id:id,node_id:nid_v,enabled:en})
+        }
+        setLD(d);return{ok:true}
+      }
+      if(pidMatch&&pidMatch[1]==='profiles'&&rest==='/preview'&&method==='GET'){
+        return localPreviewProfile(d,id)
+      }
+
+      // Profile services
+      const psSvcMatch=path.match(/^\/profiles\/(\d+)\/services\/(\d+)\/(toggle|proxy)$/)
+      if(psSvcMatch){
+        const pid=+psSvcMatch[1],sgid=+psSvcMatch[2],action=psSvcMatch[3]
+        const ps=d.profile_services.find(x=>x.profile_id===pid&&x.service_group_id===sgid)
+        if(ps){
+          if(action==='toggle')ps.enabled=body.enabled
+          if(action==='proxy')ps.default_proxy=body.default_proxy
+          setLD(d)
+        }
+        return{ok:true}
+      }
+      const psListMatch=path.match(/^\/profiles\/(\d+)\/services$/)
+      if(psListMatch&&method==='GET'){
+        return localListProfileServices(d,+psListMatch[1])
+      }
+      const psReorderMatch=path.match(/^\/profiles\/(\d+)\/services\/reorder$/)
+      if(psReorderMatch&&method==='POST'){
+        const pid=+psReorderMatch[1]
+        body.ids.forEach((sgid,i)=>{const ps=d.profile_services.find(x=>x.profile_id===pid&&x.service_group_id===sgid);if(ps)ps.sort_order=i+1})
+        setLD(d);return{ok:true}
+      }
+      const psResetMatch=path.match(/^\/profiles\/(\d+)\/services\/reset-order$/)
+      if(psResetMatch&&method==='POST'){
+        const pid=+psResetMatch[1]
+        for(const s of d.services){
+          const ps=d.profile_services.find(x=>x.profile_id===pid&&x.service_group_id===s.id)
+          if(ps){ps.sort_order=s.sort_order;ps.enabled=s.enabled}
+        }
+        setLD(d);return{ok:true}
+      }
+
+      // ── Account (stub for local mode) ──
+      if(path==='/me') return{username:'本地模式'}
+      if(path==='/password') return{ok:true}
+      if(path==='/health') return{status:'ok'}
+
+      return null
+    }
+
+    function localListNodes(d){
+      const subMap={}
+      for(const s of d.subscriptions) subMap[s.id]=s
+      return d.nodes.map(n=>{
+        const sub=subMap[n.subscription_id]
+        return{...n,sub_name:n.subscription_id===0?'本地':(sub?sub.name:''),append_sub_name:sub?sub.append_sub_name:false,append_traffic:sub?sub.append_traffic:false,traffic_used:sub?sub.traffic_used:0,traffic_total:sub?sub.traffic_total:0}
+      })
+    }
+
+    function localListProfileNodes(d,profileId){
+      const pnMap={}
+      for(const pn of d.profile_nodes.filter(x=>x.profile_id===profileId)) pnMap[pn.node_id]=pn.enabled
+      const subMap={};for(const s of d.subscriptions)subMap[s.id]=s
+      return d.nodes.map(n=>{
+        const en=pnMap[n.id]!==undefined?pnMap[n.id]:true
+        const sub=subMap[n.subscription_id]
+        return{node_id:n.id,name:n.name,alias:n.alias,sub_name:n.subscription_id===0?'本地':(sub?sub.name:''),enabled:en,append_sub_name:sub?sub.append_sub_name:false,append_traffic:sub?sub.append_traffic:false,traffic_used:sub?sub.traffic_used:0}
+      })
+    }
+
+    function localListProfileServices(d,profileId){
+      const gMap={};for(const g of d.services)gMap[g.id]=g
+      let psList=d.profile_services.filter(x=>x.profile_id===profileId)
+      const existMap={};for(const ps of psList)existMap[ps.service_group_id]=true
+      for(const g of d.services){
+        if(!existMap[g.id]){
+          const ps={id:nid(d),profile_id:profileId,service_group_id:g.id,enabled:false,sort_order:g.sort_order}
+          d.profile_services.push(ps);psList.push(ps)
+        }
+      }
+      setLD(d)
+      return psList.sort((a,b)=>a.sort_order-b.sort_order).map(ps=>{
+        const g=gMap[ps.service_group_id]
+        return g?{service_group_id:ps.service_group_id,name:g.name,icon:g.icon,default_proxy:g.default_proxy,default_proxy_override:ps.default_proxy||'',rule_count:g.rule_count||0,enabled:ps.enabled,sort_order:ps.sort_order}:null
+      }).filter(Boolean)
+    }
+
+    async function localFetchSub(d,subId){
+      const sub=d.subscriptions.find(s=>s.id===subId)
+      if(!sub||!sub.url) return null
+      try{
+        const r=await fetch('/api/proxy/fetch-sub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:sub.url,exclude_keywords:sub.exclude_keywords})})
+        const data=await r.json()
+        if(!r.ok){notify(data.error||'拉取失败','error');return null}
+        const oldNodeIds=new Set(d.nodes.filter(n=>n.subscription_id===subId).map(n=>n.id))
+        d.nodes=d.nodes.filter(n=>n.subscription_id!==subId)
+        d.profile_nodes=d.profile_nodes.filter(pn=>!oldNodeIds.has(pn.node_id))
+        const newNodes=data.nodes.map(n=>({...n,id:nid(d),subscription_id:subId,enabled:true}))
+        d.nodes.push(...newNodes)
+        for(const p of d.profiles) for(const n of newNodes) d.profile_nodes.push({id:nid(d),profile_id:p.id,node_id:n.id,enabled:true})
+        sub.last_fetched=new Date().toISOString()
+        if(data.traffic_info){
+          sub.traffic_used=(data.traffic_info.upload||0)+(data.traffic_info.download||0)
+          sub.traffic_total=data.traffic_info.total||0
+          sub.sub_expiry=data.traffic_info.expire>0?new Date(data.traffic_info.expire*1000).toISOString().split('T')[0]:''
+        }
+        setLD(d)
+        return{ok:true,count:newNodes.length}
+      }catch(e){notify(e.message,'error');return null}
+    }
+
+    async function localImportSub(d,subId,body){
+      if(!body.content) return null
+      // Content parsing requires server-side logic; not supported in pure local mode
+      notify('本地模式暂不支持原文导入，请使用订阅链接拉取','error')
+      return null
+    }
+
+    async function localFetchServiceRules(d,svcId){
+      const g=d.services.find(s=>s.id===svcId)
+      if(!g||g.rule_type==='local') return null
+      try{
+        const r=await fetch('/api/proxy/fetch-rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rule_url:g.rule_url,rule_type:g.rule_type})})
+        const data=await r.json()
+        if(!r.ok){notify(data.error||'拉取失败','error');return null}
+        g.cached_rules=data.cached_rules;g.rule_count=data.rule_count;g.last_fetched=new Date().toISOString()
+        setLD(d)
+        return{ok:true,rule_count:data.rule_count}
+      }catch(e){notify(e.message,'error');return null}
+    }
+
+    function localParseRuleCount(d,g){
+      if(!g.cached_rules)return
+      const m=g.cached_rules.match(/^\s*-\s/gm)
+      g.rule_count=m?m.length:0
+      g.last_fetched=new Date().toISOString()
+      setLD(d)
+    }
+
+    async function localPreviewProfile(d,profileId){
+      const p=d.profiles.find(x=>x.id===profileId)
+      if(!p) return{config:'# Profile not found'}
+      const psList=d.profile_services.filter(ps=>ps.profile_id===profileId&&ps.enabled)
+      const enabledSvcIds=psList.map(ps=>ps.service_group_id)
+      const groups=d.services.filter(s=>enabledSvcIds.includes(s.id)).map(s=>{
+        const ps=psList.find(x=>x.service_group_id===s.id)
+        return{...s,sort_order:ps?ps.sort_order:s.sort_order,default_proxy:ps&&ps.default_proxy?ps.default_proxy:s.default_proxy}
+      }).sort((a,b)=>a.sort_order-b.sort_order)
+      const pnList=d.profile_nodes.filter(pn=>pn.profile_id===profileId&&pn.enabled)
+      let enabledNodes=pnList.length>0?d.nodes.filter(n=>pnList.some(pn=>pn.node_id===n.id)):d.nodes.filter(n=>n.enabled)
+      let dnsConfig=''
+      if(p.dns_preset_id){const dp=d.dns_presets.find(x=>x.id===p.dns_preset_id);if(dp)dnsConfig=dp.config}
+      try{
+        const r=await fetch('/api/proxy/generate-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          nodes:enabledNodes.map(n=>({...n,raw_config:n.raw_config})),
+          subscriptions:d.subscriptions,
+          service_groups:groups.map(g=>({...g,cached_rules:g.cached_rules})),
+          catch_all:p.catch_all,geoip_cn:p.geoip_cn,dns_config:dnsConfig
+        })})
+        const data=await r.json()
+        return{config:data.config||data.error||'# Error'}
+      }catch(e){return{config:'# '+e.message}}
+    }
+
+    function parseLocalAliasPresets(raw){
+      if(!raw) return[]
+      return raw.split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#')).map(l=>{
+        const p=l.split('=',2);return p.length===2?{keyword:p[0].trim(),alias:p[1].trim()}:null
+      }).filter(Boolean)
+    }
+
+    function localToken(){return Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join('')}
+
+    // ── API Router ──
     async function api(path,opts={}){
+      if(activeMode.value==='local') return localApi(path,opts)
       try{
         const r=await fetch('/api'+path,opts)
         if(r.status===401&&!path.startsWith('/login')){loggedIn.value=false;return null}
@@ -662,6 +1119,18 @@ createApp({
       }catch(e){loginError.value='网络错误'}
     }
     async function logout(){await api('/logout',{method:'POST'});loggedIn.value=false;loginForm.value={username:'',password:''}}
+
+    async function switchToLocal(){
+      activeMode.value='local'
+      await initLocalStore()
+      loggedIn.value=true
+      load()
+    }
+    function switchToLogin(){
+      activeMode.value='login'
+      loggedIn.value=false
+      loginError.value=''
+    }
 
     async function load(){
       const [s,n,sv,p]=await Promise.all([api('/subscriptions'),api('/nodes'),api('/services'),api('/profiles')])
@@ -931,6 +1400,127 @@ createApp({
     function copyUrl(token){navigator.clipboard?.writeText(subUrl(token));notify('链接已复制')}
     function downloadConfig(token){const a=document.createElement('a');a.href=`/sub?token=${token}`;a.download='config.yaml';a.click()}
     function openAccountModal(){pwdForm.value={old_password:'',new_password:'',new_username:''};showOldPwd.value=false;showNewPwd.value=false;pwdModal.value=true}
+
+    // ── Import / Export ──
+    function openImportExport(){importPreview.value=null;importRawData.value=null;ieModal.value=true}
+    async function doExport(){
+      let data
+      if(activeMode.value==='local'){
+        const ld=getLD()
+        data={version:1,exported_at:new Date().toISOString(),subscriptions:ld.subscriptions,nodes:ld.nodes,service_groups:ld.services,profiles:ld.profiles,profile_nodes:ld.profile_nodes,profile_services:ld.profile_services,dns_presets:ld.dns_presets,alias_presets:ld.alias_presets,settings:ld.settings}
+      }else{
+        data=await api('/export')
+        if(!data) return
+      }
+      const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'})
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='subforge-config.json';a.click()
+      URL.revokeObjectURL(a.href)
+      notify('配置已导出')
+    }
+    function handleImportFile(e){const f=e.target.files[0];if(f) parseImportFile(f)}
+    function handleImportDrop(e){const f=e.dataTransfer.files[0];if(f) parseImportFile(f)}
+    function parseImportFile(file){
+      const reader=new FileReader()
+      reader.onload=e=>{
+        try{
+          const data=JSON.parse(e.target.result)
+          importRawData.value=data
+          importPreview.value={
+            subscriptions:(data.subscriptions||[]).length,
+            nodes:(data.nodes||[]).length,
+            services:(data.service_groups||[]).length,
+            profiles:(data.profiles||[]).length,
+            dns_presets:(data.dns_presets||[]).length
+          }
+        }catch(err){notify('文件格式错误','error')}
+      }
+      reader.readAsText(file)
+    }
+    async function doImport(){
+      const data=importRawData.value
+      if(!data) return
+      if(activeMode.value==='local'){
+        const ld=getLD()||emptyLD()
+        ld.subscriptions=data.subscriptions||[]
+        ld.nodes=data.nodes||[]
+        ld.services=data.service_groups||[]
+        ld.profiles=data.profiles||[]
+        ld.profile_nodes=data.profile_nodes||[]
+        ld.profile_services=data.profile_services||[]
+        ld.dns_presets=data.dns_presets||[]
+        ld.alias_presets=data.alias_presets||''
+        ld.settings=data.settings||{}
+        const maxId=Math.max(0,...[...ld.subscriptions,...ld.nodes,...ld.services,...ld.profiles,...ld.profile_nodes,...ld.profile_services,...ld.dns_presets].map(x=>x.id||0))
+        ld._nextId=maxId+1
+        setLD(ld)
+        notify('配置已导入');importPreview.value=null;importRawData.value=null;ieModal.value=false;load()
+      }else{
+        const r=await api('/import',post(data))
+        if(r?.ok){notify('配置已导入');importPreview.value=null;importRawData.value=null;ieModal.value=false;load()}
+      }
+    }
+
+    // ── Publish Profile (Local Mode) ──
+    async function publishProfile(p){
+      const d=getLD()
+      if(!d) return
+      const psList=d.profile_services.filter(ps=>ps.profile_id===p.id&&ps.enabled)
+      const enabledSvcIds=psList.map(ps=>ps.service_group_id)
+      const groups=d.services.filter(s=>enabledSvcIds.includes(s.id)).map(s=>{
+        const ps=psList.find(x=>x.service_group_id===s.id)
+        return{...s,sort_order:ps?ps.sort_order:s.sort_order,default_proxy:ps&&ps.default_proxy?ps.default_proxy:s.default_proxy}
+      }).sort((a,b)=>a.sort_order-b.sort_order)
+      const pnList=d.profile_nodes.filter(pn=>pn.profile_id===p.id&&pn.enabled)
+      let enabledNodes=pnList.length>0?d.nodes.filter(n=>pnList.some(pn=>pn.node_id===n.id)):d.nodes.filter(n=>n.enabled)
+      let dnsConfig=''
+      if(p.dns_preset_id){const dp=d.dns_presets.find(x=>x.id===p.dns_preset_id);if(dp)dnsConfig=dp.config}
+      try{
+        const r=await fetch('/api/proxy/publish-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          nodes:enabledNodes.map(n=>({...n,raw_config:n.raw_config})),
+          subscriptions:d.subscriptions,
+          service_groups:groups.map(g=>({...g,cached_rules:g.cached_rules})),
+          catch_all:p.catch_all,geoip_cn:p.geoip_cn,dns_config:dnsConfig,
+          token:p.published_token||''
+        })})
+        const data=await r.json()
+        if(!r.ok){notify(data.error||'发布失败','error');return}
+        p.published_token=data.token
+        const idx=d.profiles.findIndex(x=>x.id===p.id)
+        if(idx>=0)d.profiles[idx].published_token=data.token
+        setLD(d)
+        const pi=profiles.value.findIndex(x=>x.id===p.id)
+        if(pi>=0)profiles.value[pi].published_token=data.token
+        notify('发布成功')
+      }catch(e){notify(e.message,'error')}
+    }
+
+    async function downloadLocalConfig(p){
+      const d=getLD()
+      if(!d) return
+      const psList=d.profile_services.filter(ps=>ps.profile_id===p.id&&ps.enabled)
+      const enabledSvcIds=psList.map(ps=>ps.service_group_id)
+      const groups=d.services.filter(s=>enabledSvcIds.includes(s.id)).map(s=>{
+        const ps=psList.find(x=>x.service_group_id===s.id)
+        return{...s,sort_order:ps?ps.sort_order:s.sort_order,default_proxy:ps&&ps.default_proxy?ps.default_proxy:s.default_proxy}
+      }).sort((a,b)=>a.sort_order-b.sort_order)
+      const pnList=d.profile_nodes.filter(pn=>pn.profile_id===p.id&&pn.enabled)
+      let enabledNodes=pnList.length>0?d.nodes.filter(n=>pnList.some(pn=>pn.node_id===n.id)):d.nodes.filter(n=>n.enabled)
+      let dnsConfig=''
+      if(p.dns_preset_id){const dp=d.dns_presets.find(x=>x.id===p.dns_preset_id);if(dp)dnsConfig=dp.config}
+      try{
+        const r=await fetch('/api/proxy/generate-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          nodes:enabledNodes.map(n=>({...n,raw_config:n.raw_config})),
+          subscriptions:d.subscriptions,
+          service_groups:groups.map(g=>({...g,cached_rules:g.cached_rules})),
+          catch_all:p.catch_all,geoip_cn:p.geoip_cn,dns_config:dnsConfig
+        })})
+        const data=await r.json()
+        if(!r.ok){notify(data.error||'生成失败','error');return}
+        const blob=new Blob([data.config],{type:'text/yaml'})
+        const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='config.yaml';a.click()
+        URL.revokeObjectURL(a.href)
+      }catch(e){notify(e.message,'error')}
+    }
     async function changePwd(){
       const hadNewPwd=!!pwdForm.value.new_password
       const r=await api('/password',post(pwdForm.value))
@@ -945,20 +1535,36 @@ createApp({
       }
     }
 
-    onMounted(checkAuth)
+    onMounted(async()=>{
+      try{
+        const mode=await fetch('/api/mode').then(r=>r.json())
+        serverMode.value=mode
+      }catch(e){}
+      if(serverMode.value.login_enabled&&!serverMode.value.local_enabled){
+        activeMode.value='login';checkAuth()
+      }else if(!serverMode.value.login_enabled&&serverMode.value.local_enabled){
+        activeMode.value='local';await initLocalStore();loggedIn.value=true;load()
+      }else if(serverMode.value.login_enabled&&serverMode.value.local_enabled){
+        activeMode.value='login';checkAuth()
+      }
+      modeLoaded.value=true
+    })
 
-    return {loggedIn,loginForm,loginError,tab,subscriptions,nodes,services,dnsPresets,profiles,
+    return {serverMode,activeMode,modeLoaded,
+      loggedIn,loginForm,loginError,tab,subscriptions,nodes,services,dnsPresets,profiles,
       nodeFilter,nodeSubFilter,newSub,newProfile,toast,
       svcModal,editingSvcId,svcForm,svcRulePreview,
       dnsModal,editingDnsId,dnsForm,
       pwdModal,pwdForm,currentUsername,showOldPwd,showNewPwd,
       subEditModal,subEditForm,
       nodeEditModal,nodeEditForm,showAliasPresets,aliasPresetsText,
+      ieModal,importPreview,importRawData,
       expandedProfile,profileNodeData,profileSvcData,profilePreview,profilePreviewContent,
       enabledNodes,filteredNodes,totalRules,subUrl,
       groupedProfileNodes,profileEnabledNodeCount,profileEnabledNodes,profileEnabledSvcCount,
       notify,fmtTraffic,fmtBytes,formatDate,isExpired,nodeDisplayName,
       checkAuth,login,logout,load,loadServices,loadDnsPresets,
+      switchToLocal,switchToLogin,
       addSub,fetchSub,delSub,patchSub,moveSubscription,openEditSub,saveEditSub,
       toggleNode,saveAlias,openAddNode,openEditNode,saveNodeEdit,delNode,loadAliasPresets,saveAliasPresets,applyAliasPresets,
       openAddSvc,editSvc,saveSvc,delSvc,fetchSvcRules,toggleSvcEnabled,toggleSvcAutoRefresh,moveGlobalSvc,previewSvcRules,
@@ -967,7 +1573,9 @@ createApp({
       addProfile,delProfile,patchProfile,renameProfile,confirmRenameProfile,cancelRenameProfile,moveProfile,expandProfile,
       toggleProfileNode,batchProfileNodes,batchProfileNodeGroup,
       toggleProfileSvc,updateProfileSvcProxy,moveProfileSvc,resetProfileSvcOrder,previewProfileConfig,
-      copyUrl,downloadConfig,openAccountModal,changePwd}
+      copyUrl,downloadConfig,openAccountModal,changePwd,
+      openImportExport,doExport,handleImportFile,handleImportDrop,doImport,
+      publishProfile,downloadLocalConfig}
   }
 }).mount('#app')
 </script>

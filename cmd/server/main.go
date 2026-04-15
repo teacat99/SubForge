@@ -99,7 +99,15 @@ func main() {
 	go initialRuleFetch(s)
 	go autoFetch(s)
 
-	router := api.NewRouter(s)
+	loginEnabled := os.Getenv("SUBFORGE_LOGIN_ENABLED") != "false"
+	localEnabled := os.Getenv("SUBFORGE_LOCAL_ENABLED") == "true"
+	if !loginEnabled && !localEnabled {
+		loginEnabled = true
+		log.Printf("[warn] both modes disabled, fallback to login mode")
+	}
+	log.Printf("mode: login=%v local=%v", loginEnabled, localEnabled)
+
+	router := api.NewRouter(s, loginEnabled, localEnabled, defaultDnsYAML)
 
 	webFS, _ := fs.Sub(web.FS, ".")
 	router.NoRoute(func(c *api.GinContext) {
