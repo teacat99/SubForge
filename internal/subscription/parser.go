@@ -72,7 +72,7 @@ func fetchContent(rawURL string) (*fetchResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "SubForge/1.0")
+	req.Header.Set("User-Agent", "clash-verge/v2.0.0")
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

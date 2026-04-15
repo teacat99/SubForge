@@ -47,6 +47,7 @@ func NewRouter(s *store.Store) *gin.Engine {
 
 		api.GET("/subscriptions", h.listSubscriptions)
 		api.POST("/subscriptions", h.createSubscription)
+		api.POST("/subscriptions/reorder", h.reorderSubscriptions)
 		api.PATCH("/subscriptions/:id", h.updateSubscription)
 		api.DELETE("/subscriptions/:id", h.deleteSubscription)
 		api.POST("/subscriptions/:id/fetch", h.fetchSubscription)
@@ -80,6 +81,7 @@ func NewRouter(s *store.Store) *gin.Engine {
 
 		api.GET("/profiles", h.listProfiles)
 		api.POST("/profiles", h.createProfile)
+		api.POST("/profiles/reorder", h.reorderProfiles)
 		api.PATCH("/profiles/:id", h.updateProfile)
 		api.DELETE("/profiles/:id", h.deleteProfile)
 		api.GET("/profiles/:id/nodes", h.listProfileNodes)
@@ -174,6 +176,10 @@ func (h *Handler) changePassword(c *gin.Context) {
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}
+		h.mu.Lock()
+		h.sessionToken = ""
+		h.mu.Unlock()
+		c.SetCookie("session", "", -1, "/", "", false, true)
 	}
 	c.JSON(200, gin.H{"ok": true})
 }
@@ -209,6 +215,21 @@ func (h *Handler) listSubscriptions(c *gin.Context) {
 		return
 	}
 	c.JSON(200, subs)
+}
+
+func (h *Handler) reorderSubscriptions(c *gin.Context) {
+	var body struct {
+		IDs []uint `json:"ids"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.store.ReorderSubscriptions(body.IDs); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"ok": true})
 }
 
 func (h *Handler) createSubscription(c *gin.Context) {
@@ -247,6 +268,9 @@ func (h *Handler) updateSubscription(c *gin.Context) {
 		return
 	}
 	sub.ID = id
+	if sub.URL == "" {
+		sub.AutoRefresh = false
+	}
 	if err := h.store.UpdateSubscription(sub); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -905,13 +929,28 @@ func (h *Handler) createProfile(c *gin.Context) {
 	}
 	p.Token = generateToken()
 	p.Enabled = true
-	p.CatchAll = true
+	p.CatchAll = false
 	p.GeoipCN = true
 	if err := h.store.CreateProfile(&p); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(201, p)
+}
+
+func (h *Handler) reorderProfiles(c *gin.Context) {
+	var body struct {
+		IDs []uint `json:"ids"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.store.ReorderProfiles(body.IDs); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"ok": true})
 }
 
 func (h *Handler) updateProfile(c *gin.Context) {

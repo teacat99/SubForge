@@ -29,7 +29,7 @@ var defaultServices = []struct {
 	{"Disney+", faviconBase + "www.disney.com", cdnBase + "Disney/Disney.yaml", "remote", "", "自动选择"},
 	{"Spotify", faviconBase + "www.spotify.com?larger=true", cdnBase + "Spotify/Spotify.yaml", "remote", "", "自动选择"},
 	{"TikTok", faviconBase + "www.tiktok.com?larger=true", cdnBase + "TikTok/TikTok.yaml", "remote", "", "自动选择"},
-	{"Cursor", faviconBase + "cursor.com?larger=true", "", "local", "payload:\n - DOMAIN-KEYWORD,cursor,Cursor\n", "自动选择"},
+	{"Cursor", faviconBase + "cursor.com?larger=true", "", "local", "payload:\n  - DOMAIN-KEYWORD,cursor\n", "自动选择"},
 	{"Copilot", faviconBase + "copilot.microsoft.com?larger=true", cdnBase + "Copilot/Copilot.yaml", "remote", "", "自动选择"},
 	{"Microsoft", faviconBase + "www.microsoft.com?larger=true", cdnBase + "Microsoft/Microsoft.yaml", "remote", "", "DIRECT"},
 	{"Steam", faviconBase + "store.steampowered.com?larger=true", cdnBase + "Steam/Steam.yaml", "remote", "", "DIRECT"},

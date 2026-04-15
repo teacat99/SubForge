@@ -85,12 +85,15 @@ func (s *Store) GetFirstAdmin() (*model.AdminUser, error) {
 // ── Subscription ──
 
 func (s *Store) CreateSubscription(sub *model.Subscription) error {
+	var maxOrder int
+	s.db.Model(&model.Subscription{}).Select("COALESCE(MAX(sort_order), 0)").Scan(&maxOrder)
+	sub.SortOrder = maxOrder + 1
 	return s.db.Create(sub).Error
 }
 
 func (s *Store) ListSubscriptions() ([]model.Subscription, error) {
 	var subs []model.Subscription
-	if err := s.db.Order("id ASC").Find(&subs).Error; err != nil {
+	if err := s.db.Order("sort_order ASC, id ASC").Find(&subs).Error; err != nil {
 		return nil, err
 	}
 	for i := range subs {
@@ -99,6 +102,18 @@ func (s *Store) ListSubscriptions() ([]model.Subscription, error) {
 		subs[i].NodeCount = int(count)
 	}
 	return subs, nil
+}
+
+func (s *Store) ReorderSubscriptions(ids []uint) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			if err := tx.Model(&model.Subscription{}).Where("id = ?", id).
+				Update("sort_order", i+1).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (s *Store) GetSubscription(id uint) (*model.Subscription, error) {
@@ -163,12 +178,18 @@ func (s *Store) ListNodesBySubscription(subID uint) ([]model.Node, error) {
 
 func (s *Store) ListNodes() ([]model.Node, error) {
 	var nodes []model.Node
-	return nodes, s.db.Order("id ASC").Find(&nodes).Error
+	return nodes, s.db.
+		Joins("LEFT JOIN subscriptions ON subscriptions.id = nodes.subscription_id").
+		Order("CASE WHEN nodes.subscription_id = 0 THEN 1 ELSE 0 END, subscriptions.sort_order ASC, nodes.id ASC").
+		Find(&nodes).Error
 }
 
 func (s *Store) ListEnabledNodes() ([]model.Node, error) {
 	var nodes []model.Node
-	return nodes, s.db.Where("enabled = ?", true).Order("id ASC").Find(&nodes).Error
+	return nodes, s.db.Where("nodes.enabled = ?", true).
+		Joins("LEFT JOIN subscriptions ON subscriptions.id = nodes.subscription_id").
+		Order("CASE WHEN nodes.subscription_id = 0 THEN 1 ELSE 0 END, subscriptions.sort_order ASC, nodes.id ASC").
+		Find(&nodes).Error
 }
 
 func (s *Store) ToggleNode(id uint, enabled bool) error {
@@ -437,7 +458,10 @@ func (s *Store) GetNodesByIDs(ids []uint) ([]model.Node, error) {
 	if len(ids) == 0 {
 		return nodes, nil
 	}
-	return nodes, s.db.Where("id IN ?", ids).Order("id ASC").Find(&nodes).Error
+	return nodes, s.db.Where("nodes.id IN ?", ids).
+		Joins("LEFT JOIN subscriptions ON subscriptions.id = nodes.subscription_id").
+		Order("CASE WHEN nodes.subscription_id = 0 THEN 1 ELSE 0 END, subscriptions.sort_order ASC, nodes.id ASC").
+		Find(&nodes).Error
 }
 
 // ── Setting ──
@@ -495,6 +519,9 @@ func (s *Store) DeleteDnsPreset(id uint) error {
 // ── UserProfile ──
 
 func (s *Store) CreateProfile(p *model.UserProfile) error {
+	var maxOrder int
+	s.db.Model(&model.UserProfile{}).Select("COALESCE(MAX(sort_order), 0)").Scan(&maxOrder)
+	p.SortOrder = maxOrder + 1
 	if err := s.db.Create(p).Error; err != nil {
 		return err
 	}
@@ -505,7 +532,19 @@ func (s *Store) CreateProfile(p *model.UserProfile) error {
 
 func (s *Store) ListProfiles() ([]model.UserProfile, error) {
 	var profiles []model.UserProfile
-	return profiles, s.db.Order("id ASC").Find(&profiles).Error
+	return profiles, s.db.Order("sort_order ASC, id ASC").Find(&profiles).Error
+}
+
+func (s *Store) ReorderProfiles(ids []uint) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			if err := tx.Model(&model.UserProfile{}).Where("id = ?", id).
+				Update("sort_order", i+1).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (s *Store) GetProfileByToken(token string) (*model.UserProfile, error) {

@@ -116,7 +116,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
   <h1>SubForge</h1>
   <div class="tabs">
     <a :class="{active:tab==='subs'}" @click="tab='subs'">订阅源</a>
-    <a :class="{active:tab==='nodes'}" @click="tab='nodes';loadAliasPresets()">节点管理</a>
+    <a :class="{active:tab==='nodes'}" @click="tab='nodes';load();loadAliasPresets()">节点管理</a>
     <a :class="{active:tab==='services'}" @click="tab='services';loadServices();loadDnsPresets()">服务规则</a>
     <a :class="{active:tab==='profiles'}" @click="tab='profiles';loadDnsPresets()">订阅分发</a>
   </div>
@@ -148,22 +148,26 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
       <h2>订阅列表 <span class="badge">{{subscriptions.length}}</span></h2>
       <div style="overflow-x:auto">
       <table v-if="subscriptions.length">
-        <thead><tr><th>名称</th><th>地址</th><th>节点</th><th>流量</th><th>到期</th><th>更新时间</th><th>自动刷新</th><th>间隔</th><th>附名</th><th>附流量</th><th>操作</th></tr></thead>
+        <thead><tr><th>排序</th><th>名称</th><th>地址</th><th>节点</th><th>流量</th><th>到期</th><th>更新时间</th><th>自动刷新</th><th>间隔</th><th>附名</th><th>附流量</th><th>操作</th></tr></thead>
         <tbody>
-          <tr v-for="s in subscriptions" :key="s.id">
+          <tr v-for="(s,i) in subscriptions" :key="s.id">
+            <td style="white-space:nowrap">
+              <button class="btn-icon" @click="moveSubscription(i,-1)" :disabled="i===0" style="font-size:12px">↑</button>
+              <button class="btn-icon" @click="moveSubscription(i,1)" :disabled="i===subscriptions.length-1" style="font-size:12px">↓</button>
+            </td>
             <td><strong>{{s.name}}</strong></td>
-            <td><span class="truncate" :title="s.url">{{s.url}}</span></td>
+            <td><span class="truncate" :title="s.url">{{s.url||'(本地)'}}</span></td>
             <td>{{s.node_count}}</td>
             <td>{{fmtTraffic(s)}}</td>
             <td>{{s.sub_expiry||'-'}}</td>
             <td>{{formatDate(s.last_fetched)}}</td>
-            <td><label class="toggle"><input type="checkbox" :checked="s.auto_refresh" @change="patchSub(s,{auto_refresh:$event.target.checked})"><span class="slider"></span></label></td>
-            <td><input type="number" :value="s.interval_sec" @change="patchSub(s,{interval_sec:+$event.target.value})" style="width:80px;padding:4px 6px;font-size:12px"></td>
+            <td><label class="toggle" v-if="s.url"><input type="checkbox" :checked="s.auto_refresh" @change="patchSub(s,{auto_refresh:$event.target.checked})"><span class="slider"></span></label></td>
+            <td><input v-if="s.url" type="number" :value="s.interval_sec" @change="patchSub(s,{interval_sec:+$event.target.value})" style="width:80px;padding:4px 6px;font-size:12px"></td>
             <td><label class="toggle"><input type="checkbox" :checked="s.append_sub_name" @change="patchSub(s,{append_sub_name:$event.target.checked})"><span class="slider"></span></label></td>
             <td><label class="toggle"><input type="checkbox" :checked="s.append_traffic" @change="patchSub(s,{append_traffic:$event.target.checked})"><span class="slider"></span></label></td>
             <td style="white-space:nowrap">
               <button class="btn-text" @click="openEditSub(s)">编辑</button>
-              <button class="btn-text" @click="fetchSub(s.id)">拉取</button>
+              <button class="btn-text" v-if="s.url" @click="fetchSub(s.id)">拉取</button>
               <button class="btn-text danger" @click="delSub(s.id)">删除</button>
             </td>
           </tr>
@@ -298,14 +302,24 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
       </div>
     </div>
 
-    <div class="card" v-for="p in profiles" :key="p.id">
+    <div class="card" v-for="(p,pi) in profiles" :key="p.id">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <h2 style="margin-bottom:0">
-          {{p.name}}
+          <template v-if="renamingProfileId===p.id">
+            <input v-model="renamingProfileName" @keyup.enter="confirmRenameProfile" @keyup.escape="cancelRenameProfile" style="font-size:inherit;padding:2px 6px;border:1px solid #3b82f6;border-radius:4px;outline:none;width:160px" ref="renameInput">
+            <button class="btn btn-primary btn-sm" @click="confirmRenameProfile" style="margin-left:4px">确认</button>
+            <button class="btn btn-ghost btn-sm" @click="cancelRenameProfile">取消</button>
+          </template>
+          <template v-else>
+            {{p.name}}
+          </template>
           <span class="badge" :class="p.enabled?'':'badge-gray'">{{p.enabled?'已启用':'已停用'}}</span>
           <span v-if="isExpired(p)" class="badge" style="background:#fef2f2;color:#dc2626">已过期</span>
         </h2>
         <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn-icon" @click="moveProfile(pi,-1)" :disabled="pi===0" style="font-size:12px">↑</button>
+          <button class="btn-icon" @click="moveProfile(pi,1)" :disabled="pi===profiles.length-1" style="font-size:12px">↓</button>
+          <button v-if="renamingProfileId!==p.id" class="btn-text" @click="renameProfile(p)">重命名</button>
           <button class="btn btn-ghost btn-sm" @click="expandProfile(p.id)">{{expandedProfile===p.id?'收起':'编辑'}}</button>
           <label class="toggle"><input type="checkbox" :checked="p.enabled" @change="patchProfile(p.id,{enabled:$event.target.checked})"><span class="slider"></span></label>
           <button class="btn btn-danger btn-sm" @click="delProfile(p.id)">删除</button>
@@ -575,6 +589,8 @@ createApp({
     const profileSvcData = ref([])
     const profilePreview = ref(null)
     const profilePreviewContent = ref('')
+    const renamingProfileId = ref(null)
+    const renamingProfileName = ref('')
 
     const enabledNodes = computed(()=>nodes.value.filter(n=>n.enabled).length)
     const filteredNodes = computed(()=>{
@@ -659,8 +675,13 @@ createApp({
 
     // ── Subscription ──
     async function addSub(){
+      const hadUrl=newSub.value.url
       const r=await api('/subscriptions',post(newSub.value))
-      if(r?.id){notify('订阅已添加');newSub.value={name:'',url:''};load()}
+      if(r?.id){
+        notify('订阅已添加');newSub.value={name:'',url:''}
+        if(hadUrl){await fetchSub(r.id)}
+        else{load()}
+      }
     }
     async function fetchSub(id){
       notify('正在拉取...')
@@ -670,6 +691,16 @@ createApp({
     async function delSub(id){if(!confirm('确定删除？'))return;await api(`/subscriptions/${id}`,{method:'DELETE'});notify('已删除');load()}
     async function patchSub(s,fields){
       await api(`/subscriptions/${s.id}`,json({...s,...fields}))
+      load()
+    }
+    async function moveSubscription(index,dir){
+      const list=[...subscriptions.value]
+      const other=index+dir
+      if(other<0||other>=list.length) return
+      ;[list[index],list[other]]=[list[other],list[index]]
+      subscriptions.value=list
+      const ids=list.map(s=>s.id)
+      await api('/subscriptions/reorder',post({ids}))
       load()
     }
 
@@ -814,6 +845,32 @@ createApp({
       const r=await api('/profiles')
       if(r) profiles.value=r
     }
+    function renameProfile(p){
+      renamingProfileId.value=p.id
+      renamingProfileName.value=p.name
+    }
+    async function confirmRenameProfile(){
+      const id=renamingProfileId.value
+      const newName=renamingProfileName.value.trim()
+      renamingProfileId.value=null
+      if(!newName||!id) return
+      const old=profiles.value.find(x=>x.id===id)
+      if(old&&old.name===newName) return
+      await patchProfile(id,{name:newName})
+      notify('名称已更新')
+    }
+    function cancelRenameProfile(){
+      renamingProfileId.value=null
+    }
+    async function moveProfile(index,dir){
+      const list=[...profiles.value]
+      const other=index+dir
+      if(other<0||other>=list.length) return
+      ;[list[index],list[other]]=[list[other],list[index]]
+      profiles.value=list
+      const ids=list.map(p=>p.id)
+      await api('/profiles/reorder',post({ids}))
+    }
 
     async function expandProfile(id){
       if(expandedProfile.value===id){expandedProfile.value=null;return}
@@ -875,10 +932,16 @@ createApp({
     function downloadConfig(token){const a=document.createElement('a');a.href=`/sub?token=${token}`;a.download='config.yaml';a.click()}
     function openAccountModal(){pwdForm.value={old_password:'',new_password:'',new_username:''};showOldPwd.value=false;showNewPwd.value=false;pwdModal.value=true}
     async function changePwd(){
+      const hadNewPwd=!!pwdForm.value.new_password
       const r=await api('/password',post(pwdForm.value))
       if(r?.ok){
         if(pwdForm.value.new_username) currentUsername.value=pwdForm.value.new_username
-        notify('账号设置已更新');pwdModal.value=false;pwdForm.value={old_password:'',new_password:'',new_username:''}
+        pwdModal.value=false;pwdForm.value={old_password:'',new_password:'',new_username:''}
+        if(hadNewPwd){
+          notify('密码已更新，请重新登录');loggedIn.value=false
+        }else{
+          notify('账号设置已更新')
+        }
       }
     }
 
@@ -896,11 +959,12 @@ createApp({
       groupedProfileNodes,profileEnabledNodeCount,profileEnabledNodes,profileEnabledSvcCount,
       notify,fmtTraffic,fmtBytes,formatDate,isExpired,nodeDisplayName,
       checkAuth,login,logout,load,loadServices,loadDnsPresets,
-      addSub,fetchSub,delSub,patchSub,openEditSub,saveEditSub,
+      addSub,fetchSub,delSub,patchSub,moveSubscription,openEditSub,saveEditSub,
       toggleNode,saveAlias,openAddNode,openEditNode,saveNodeEdit,delNode,loadAliasPresets,saveAliasPresets,applyAliasPresets,
       openAddSvc,editSvc,saveSvc,delSvc,fetchSvcRules,toggleSvcEnabled,toggleSvcAutoRefresh,moveGlobalSvc,previewSvcRules,
       openAddDns,editDns,saveDns,delDns,
-      addProfile,delProfile,patchProfile,expandProfile,
+      renamingProfileId,renamingProfileName,
+      addProfile,delProfile,patchProfile,renameProfile,confirmRenameProfile,cancelRenameProfile,moveProfile,expandProfile,
       toggleProfileNode,batchProfileNodes,batchProfileNodeGroup,
       toggleProfileSvc,updateProfileSvcProxy,moveProfileSvc,resetProfileSvcOrder,previewProfileConfig,
       copyUrl,downloadConfig,openAccountModal,changePwd}

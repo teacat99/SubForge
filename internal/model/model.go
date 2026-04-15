@@ -16,6 +16,7 @@ type Subscription struct {
 	TrafficTotal    int64      `json:"traffic_total"`
 	SubExpiry       string     `json:"sub_expiry"`
 	ExcludeKeywords string     `json:"exclude_keywords" gorm:"default:'剩余流量'"`
+	SortOrder       int        `json:"sort_order" gorm:"default:0"`
 	CreatedAt       time.Time  `json:"created_at"`
 }
 
@@ -74,6 +75,7 @@ type UserProfile struct {
 	CatchAll    bool       `gorm:"default:true" json:"catch_all"`
 	GeoipCN     bool       `json:"geoip_cn" gorm:"default:true"`
 	DnsPresetID uint       `json:"dns_preset_id"`
+	SortOrder   int        `json:"sort_order" gorm:"default:0"`
 	CreatedAt   time.Time  `json:"created_at"`
 }
 

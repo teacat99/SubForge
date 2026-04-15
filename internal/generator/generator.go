@@ -33,8 +33,8 @@ func Generate(opts Options) ([]byte, error) {
 	if len(proxies) == 0 {
 		return nil, fmt.Errorf("no proxies available")
 	}
-	proxyGroups := buildProxyGroups(opts.ServiceGroups, nodeNames)
-	rules := buildRules(opts.ServiceGroups, opts.GeoipCN, opts.CatchAll)
+	proxyGroups := buildProxyGroups(opts.ServiceGroups, nodeNames, opts.CatchAll)
+	rules := buildRules(opts.ServiceGroups, opts.GeoipCN)
 
 	dnsSection := buildDefaultDNS()
 	if opts.DnsConfig != "" {
@@ -121,7 +121,7 @@ func formatBytes(bytes int64) string {
 	return fmt.Sprintf("%.1f%s", b, units[i])
 }
 
-func buildProxyGroups(groups []model.ServiceGroup, nodeNames []string) []map[string]any {
+func buildProxyGroups(groups []model.ServiceGroup, nodeNames []string, catchAll bool) []map[string]any {
 	selectProxies := append([]string{"节点选择", "DIRECT"}, nodeNames...)
 
 	result := []map[string]any{
@@ -169,16 +169,22 @@ func buildProxyGroups(groups []model.ServiceGroup, nodeNames []string) []map[str
 		})
 	}
 
+	var catchProxies []string
+	if catchAll {
+		catchProxies = append([]string{"节点选择", "DIRECT"}, nodeNames...)
+	} else {
+		catchProxies = append([]string{"DIRECT", "节点选择"}, nodeNames...)
+	}
 	result = append(result, map[string]any{
 		"name":    "漏网之鱼",
 		"type":    "select",
-		"proxies": append([]string{"DIRECT", "节点选择"}, nodeNames...),
+		"proxies": catchProxies,
 	})
 
 	return result
 }
 
-func buildRules(groups []model.ServiceGroup, geoipCN bool, catchAll bool) []string {
+func buildRules(groups []model.ServiceGroup, geoipCN bool) []string {
 	var rules []string
 	for _, g := range groups {
 		parsed := rule.ParseCachedRules(g.CachedRules, g.Name)
@@ -187,9 +193,7 @@ func buildRules(groups []model.ServiceGroup, geoipCN bool, catchAll bool) []stri
 	if geoipCN {
 		rules = append(rules, "GEOIP,CN,DIRECT")
 	}
-	if catchAll {
-		rules = append(rules, "MATCH,漏网之鱼")
-	}
+	rules = append(rules, "MATCH,漏网之鱼")
 	return rules
 }
 

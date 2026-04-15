@@ -125,7 +125,16 @@ func initialRuleFetch(s *store.Store) {
 	}
 	for i := range groups {
 		g := &groups[i]
-		if g.RuleType == "local" || g.CachedRules != "" {
+		if g.RuleType == "local" {
+			if g.CachedRules != "" && g.RuleCount == 0 {
+				if err := rule.FetchRules(g); err == nil {
+					s.UpdateServiceGroup(g)
+					log.Printf("[init-fetch] %s: %d local rules", g.Name, g.RuleCount)
+				}
+			}
+			continue
+		}
+		if g.CachedRules != "" {
 			continue
 		}
 		if g.RuleURL == "" {
