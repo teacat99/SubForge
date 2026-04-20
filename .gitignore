@@ -14,6 +14,7 @@ test/fixtures/generated_config.yaml
 # IDE / OS
 .idea/
 .vscode/
+.cursor/
 *.swp
 .DS_Store
 Thumbs.db
