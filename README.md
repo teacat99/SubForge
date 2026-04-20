@@ -1,22 +1,26 @@
 # SubForge
 
+[简体中文](README.md) | [English](README.en.md)
+
 **SubForge** 是一个轻量级的 Clash 订阅管理与分发平台，使用 Go 构建，提供开箱即用的 Web 管理界面。
 
-它可以将多个订阅源的节点聚合到一起，通过自定义的服务规则和 DNS 配置，为不同设备生成精简、可控的 Clash 配置文件。
+它可以将多个订阅源的节点聚合到一起，通过自定义的服务规则、Hosts 与 DNS 配置，为不同设备生成精简、可控的 Clash 配置文件。
 
 ## 功能特性
 
 - **订阅源管理** — 添加多个订阅源，自动/手动拉取节点，支持流量统计和过期时间展示
 - **节点管理** — 自定义别名、启用/禁用、预设别名规则、手动添加本地节点
-- **服务规则** — 内置 22 条常用分流规则（Google、YouTube、OpenAI、Steam 等），支持添加远程/本地规则，可调整排序和启用状态
-- **DNS 配置** — 内置 DNS 预设，支持自定义 DNS 配置并绑定到不同的分发配置
+- **服务规则** — 内置 22 条常用分流规则（Google、YouTube、OpenAI、Steam 等），支持添加远程/本地规则，可调整排序和启用状态；支持「直连规则」开关跳过独立 proxy-group
+- **Hosts / DNS 预设** — 内置 DNS 预设，支持自定义 DNS / Hosts 配置并绑定到不同的分发配置
 - **订阅分发** — 为不同设备创建独立的分发链接，支持：
   - 按需选择节点和服务规则
-  - 每个配置独立设置 GEOIP 中国直连、全局兜底、DNS 预设
+  - 每个配置独立设置 GEOIP 中国直连、全局兜底、DNS / Hosts 预设
   - 服务规则代理覆盖（按配置修改默认代理节点）
+  - 一键「同步规则」从全局服务规则增量同步，保留已有的开关与节点配置
   - 实时预览生成的 YAML 配置
+- **多语言界面** — Web 管理界面内置中文 / English 切换，移动端响应式适配
 - **Web 管理界面** — 单文件 Vue 3 前端，无需独立构建步骤
-- **认证与安全** — Cookie 会话认证，bcrypt 密码哈希
+- **认证与安全** — Cookie 会话认证，bcrypt 密码哈希；可选纯浏览器本地模式（数据保存在 localStorage，不依赖后端账号）
 
 ## 截图
 
@@ -48,6 +52,8 @@ services:
       - subforge-data:/data
     environment:
       - TZ=Asia/Shanghai
+      - SUBFORGE_LOGIN_ENABLED=true   # 默认 true，关闭后不显示登录页
+      - SUBFORGE_LOCAL_ENABLED=false  # 默认 false，开启后启用浏览器本地模式
 
 volumes:
   subforge-data:
@@ -74,6 +80,8 @@ docker run -d \
   -p 8080:8080 \
   -v subforge-data:/data \
   -e TZ=Asia/Shanghai \
+  -e SUBFORGE_LOGIN_ENABLED=true \
+  -e SUBFORGE_LOCAL_ENABLED=false \
   teacat99/subforge:latest
 ```
 
@@ -88,16 +96,37 @@ cd SubForge
 # 编译
 go build -o subforge ./cmd/server/
 
-# 运行
+# 默认登录模式运行
 ./subforge -port 8080
+
+# 关闭登录模式、启用浏览器本地模式
+SUBFORGE_LOGIN_ENABLED=false SUBFORGE_LOCAL_ENABLED=true ./subforge -port 8080
 ```
 
-可选参数：
+### 命令行参数
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `-port` | `8080` | 监听端口 |
-| `-db` | `data/subforge.db` | SQLite 数据库路径 |
+| `-db` | `data/subforge.db` | SQLite 数据库路径（相对可执行文件目录） |
+
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `TZ` | `UTC` | 容器时区，建议设置为 `Asia/Shanghai` |
+| `SUBFORGE_LOGIN_ENABLED` | `true` | 是否启用登录模式（账号 + 服务端存储）。设置为 `false` 关闭登录页 |
+| `SUBFORGE_LOCAL_ENABLED` | `false` | 是否启用 Web 本地模式（数据保存在浏览器 localStorage） |
+
+> 当 `SUBFORGE_LOGIN_ENABLED` 与 `SUBFORGE_LOCAL_ENABLED` 同时为 `false` 时，会自动回退到登录模式以保证服务可用。
+
+## 资源占用（参考值，依实际订阅规模浮动）
+
+- **镜像体积**：约 15 MB（基于 `gcr.io/distroless/static`）
+- **运行内存**：空闲约 20 MB；常用规模（5 个订阅源 + 数百节点）下约 40 MB
+- **CPU**：空闲 < 1%；定时拉取阶段短时占用单核
+- **磁盘**：SQLite 数据库初始约 200 KB，按节点 / 规则数量线性增长
+- **最低推荐配置**：1 vCPU / 128 MB RAM / 200 MB 磁盘
 
 ## 项目结构
 
