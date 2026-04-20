@@ -93,6 +93,39 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 .inline-input{border:1px solid transparent;padding:4px 8px;border-radius:4px;font-size:13px;width:120px;background:transparent}
 .inline-input:hover{border-color:#d1d5db;background:#fff}
 .inline-input:focus{border-color:#4f46e5;background:#fff;box-shadow:0 0 0 2px rgba(79,70,229,.1)}
+.lang-btn{min-width:42px;text-align:center;font-weight:600;letter-spacing:.5px}
+@media (max-width:768px){
+  nav{flex-wrap:wrap;height:auto;padding:8px 12px;gap:8px}
+  nav h1{font-size:16px;margin-right:0;flex:1}
+  nav .tabs{order:3;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;scrollbar-width:none}
+  nav .tabs::-webkit-scrollbar{display:none}
+  nav .tabs a{padding:6px 12px;font-size:13px;flex-shrink:0}
+  .user-menu{margin-left:0;flex-wrap:wrap;gap:6px}
+  .user-menu .btn{font-size:12px;padding:4px 10px}
+  .container{padding:12px}
+  .card{padding:14px;margin-bottom:12px}
+  .card h2{font-size:15px;flex-wrap:wrap}
+  .stats{flex-direction:column;gap:8px;margin-bottom:14px}
+  .stat{padding:12px 16px}
+  .stat .num{font-size:22px}
+  .form-row{flex-direction:column;align-items:stretch;gap:8px}
+  .form-row .field{flex:1 1 auto;width:100%}
+  .form-row > div:not(.field){width:100%}
+  .form-row > div:not(.field) .btn{width:100%;justify-content:center}
+  table{font-size:13px;min-width:560px}
+  th,td{padding:8px 8px}
+  .modal{width:96vw;padding:18px;border-radius:10px;max-height:92vh}
+  .modal h3{font-size:16px;margin-bottom:14px}
+  .login-card{width:92vw;padding:28px 22px}
+  .toast{right:12px;left:12px;width:auto;text-align:center}
+  .preview{font-size:11px;padding:12px;max-height:360px}
+  .node-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));max-height:200px}
+  .section{padding:12px}
+  .sub-url{flex-wrap:wrap}
+  .sub-url input{flex:1 1 100%;min-width:0}
+  .sub-url .btn{flex:1 1 auto;justify-content:center}
+  .truncate{max-width:90px}
+}
 </style>
 </head>
 <body>
@@ -101,15 +134,16 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 <!-- Login -->
 <div v-if="!loggedIn && modeLoaded" class="login-page">
   <div class="login-card">
-    <h2>SubForge</h2>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:-12px"><button class="btn btn-ghost btn-sm lang-btn" @click="toggleLang">{{langLabel}}</button></div>
+    <h2>{{t('brand')}}</h2>
     <template v-if="serverMode.login_enabled && activeMode==='login'">
-      <p>请登录以管理订阅和规则</p>
-      <input v-model="loginForm.username" placeholder="用户名" @keyup.enter="login">
-      <input v-model="loginForm.password" type="password" placeholder="密码" @keyup.enter="login">
-      <button class="btn btn-primary" @click="login">登录</button>
+      <p>{{t('login_intro')}}</p>
+      <input v-model="loginForm.username" :placeholder="t('login_user')" @keyup.enter="login">
+      <input v-model="loginForm.password" type="password" :placeholder="t('login_pwd')" @keyup.enter="login">
+      <button class="btn btn-primary" @click="login">{{t('login_btn')}}</button>
       <div v-if="loginError" class="login-error">{{loginError}}</div>
       <div v-if="serverMode.local_enabled" style="margin-top:16px;text-align:center;border-top:1px solid #e5e7eb;padding-top:16px">
-        <button class="btn btn-ghost" @click="switchToLocal" style="width:100%">切换本地模式</button>
+        <button class="btn btn-ghost" @click="switchToLocal" style="width:100%">{{t('login_switch_local')}}</button>
       </div>
     </template>
   </div>
@@ -118,51 +152,52 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 <!-- Main -->
 <template v-else>
 <nav>
-  <h1>SubForge</h1>
+  <h1>{{t('brand')}}</h1>
   <div class="tabs">
-    <a :class="{active:tab==='subs'}" @click="tab='subs'">订阅源</a>
-    <a :class="{active:tab==='nodes'}" @click="tab='nodes';load();loadAliasPresets()">节点管理</a>
-    <a :class="{active:tab==='services'}" @click="tab='services';loadServices();loadDnsPresets()">服务规则</a>
-    <a :class="{active:tab==='profiles'}" @click="tab='profiles';loadDnsPresets()">订阅分发</a>
+    <a :class="{active:tab==='subs'}" @click="tab='subs'">{{t('tab_subs')}}</a>
+    <a :class="{active:tab==='nodes'}" @click="tab='nodes';load();loadAliasPresets()">{{t('tab_nodes')}}</a>
+    <a :class="{active:tab==='services'}" @click="tab='services';loadServices();loadDnsPresets();loadHostsPresets()">{{t('tab_services')}}</a>
+    <a :class="{active:tab==='profiles'}" @click="tab='profiles';loadDnsPresets();loadHostsPresets()">{{t('tab_profiles')}}</a>
   </div>
   <div class="user-menu">
     <template v-if="activeMode==='login'">
-      <button class="btn" @click="openAccountModal">账号设置</button>
-      <button class="btn" v-if="serverMode.local_enabled" @click="switchToLocal">本地模式</button>
-      <button class="btn" @click="openImportExport">数据管理</button>
-      <button class="btn" @click="logout">登出</button>
+      <button class="btn" @click="openAccountModal">{{t('btn_account')}}</button>
+      <button class="btn" v-if="serverMode.local_enabled" @click="switchToLocal">{{t('btn_local_mode')}}</button>
+      <button class="btn" @click="openImportExport">{{t('btn_data')}}</button>
+      <button class="btn" @click="logout">{{t('btn_logout')}}</button>
     </template>
     <template v-else>
-      <span style="color:rgba(255,255,255,.7);font-size:13px;padding:4px 8px;background:rgba(255,255,255,.1);border-radius:4px">本地模式</span>
-      <button class="btn" @click="openImportExport">数据管理</button>
-      <button class="btn" v-if="serverMode.login_enabled" @click="switchToLogin">切换登录</button>
+      <span style="color:rgba(255,255,255,.7);font-size:13px;padding:4px 8px;background:rgba(255,255,255,.1);border-radius:4px">{{t('badge_local_mode')}}</span>
+      <button class="btn" @click="openImportExport">{{t('btn_data')}}</button>
+      <button class="btn" v-if="serverMode.login_enabled" @click="switchToLogin">{{t('btn_switch_login')}}</button>
     </template>
+    <button class="btn lang-btn" @click="toggleLang" :title="t('brand')">{{langLabel}}</button>
   </div>
 </nav>
 
 <div class="container">
   <div class="stats">
-    <div class="stat"><div class="num">{{subscriptions.length}}</div><div class="label">订阅源</div></div>
-    <div class="stat"><div class="num">{{nodes.length}}</div><div class="label">节点</div></div>
-    <div class="stat"><div class="num">{{services.length}}</div><div class="label">服务规则</div></div>
-    <div class="stat"><div class="num">{{totalRules}}</div><div class="label">规则总数</div></div>
+    <div class="stat"><div class="num">{{subscriptions.length}}</div><div class="label">{{t('stat_subs')}}</div></div>
+    <div class="stat"><div class="num">{{nodes.length}}</div><div class="label">{{t('stat_nodes')}}</div></div>
+    <div class="stat"><div class="num">{{services.length}}</div><div class="label">{{t('stat_services')}}</div></div>
+    <div class="stat"><div class="num">{{totalRules}}</div><div class="label">{{t('stat_total_rules')}}</div></div>
   </div>
 
   <!-- ============ 订阅源 ============ -->
   <div v-if="tab==='subs'">
     <div class="card">
-      <h2>添加订阅</h2>
+      <h2>{{t('subs_add')}}</h2>
       <div class="form-row">
-        <div class="field"><label>名称</label><input v-model="newSub.name" placeholder="如：我的机场"></div>
-        <div class="field" style="flex:2"><label>订阅地址</label><input v-model="newSub.url" placeholder="https://..."></div>
-        <div><button class="btn btn-primary" @click="addSub" :disabled="!newSub.name">添加</button></div>
+        <div class="field"><label>{{t('subs_name')}}</label><input v-model="newSub.name" :placeholder="t('subs_name_ph')"></div>
+        <div class="field" style="flex:2"><label>{{t('subs_url')}}</label><input v-model="newSub.url" :placeholder="t('subs_url_ph')"></div>
+        <div><button class="btn btn-primary" @click="addSub" :disabled="!newSub.name">{{t('btn_add')}}</button></div>
       </div>
     </div>
     <div class="card">
-      <h2>订阅列表 <span class="badge">{{subscriptions.length}}</span></h2>
+      <h2>{{t('subs_list')}} <span class="badge">{{subscriptions.length}}</span></h2>
       <div style="overflow-x:auto">
       <table v-if="subscriptions.length">
-        <thead><tr><th>排序</th><th>名称</th><th>地址</th><th>节点</th><th>流量</th><th>到期</th><th>更新时间</th><th>自动刷新</th><th>间隔</th><th>附名</th><th>附流量</th><th>操作</th></tr></thead>
+        <thead><tr><th>{{t('col_sort')}}</th><th>{{t('col_name')}}</th><th>{{t('col_url')}}</th><th>{{t('col_nodes')}}</th><th>{{t('col_traffic')}}</th><th>{{t('col_expiry')}}</th><th>{{t('col_updated')}}</th><th>{{t('col_auto')}}</th><th>{{t('col_interval')}}</th><th>{{t('col_append_name')}}</th><th>{{t('col_append_traffic')}}</th><th>{{t('col_actions')}}</th></tr></thead>
         <tbody>
           <tr v-for="(s,i) in subscriptions" :key="s.id">
             <td style="white-space:nowrap">
@@ -170,7 +205,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
               <button class="btn-icon" @click="moveSubscription(i,1)" :disabled="i===subscriptions.length-1" style="font-size:12px">↓</button>
             </td>
             <td><strong>{{s.name}}</strong></td>
-            <td><span class="truncate" :title="s.url">{{s.url||'(本地)'}}</span></td>
+            <td><span class="truncate" :title="s.url">{{s.url||t('val_local')}}</span></td>
             <td>{{s.node_count}}</td>
             <td>{{fmtTraffic(s)}}</td>
             <td>{{s.sub_expiry||'-'}}</td>
@@ -180,15 +215,15 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
             <td><label class="toggle"><input type="checkbox" :checked="s.append_sub_name" @change="patchSub(s,{append_sub_name:$event.target.checked})"><span class="slider"></span></label></td>
             <td><label class="toggle"><input type="checkbox" :checked="s.append_traffic" @change="patchSub(s,{append_traffic:$event.target.checked})"><span class="slider"></span></label></td>
             <td style="white-space:nowrap">
-              <button class="btn-text" @click="openEditSub(s)">编辑</button>
-              <button class="btn-text" v-if="s.url" @click="fetchSub(s.id)">拉取</button>
-              <button class="btn-text danger" @click="delSub(s.id)">删除</button>
+              <button class="btn-text" @click="openEditSub(s)">{{t('btn_edit')}}</button>
+              <button class="btn-text" v-if="s.url" @click="fetchSub(s.id)">{{t('btn_fetch')}}</button>
+              <button class="btn-text danger" @click="delSub(s.id)">{{t('btn_delete')}}</button>
             </td>
           </tr>
         </tbody>
       </table>
       </div>
-      <div v-if="!subscriptions.length" class="empty">暂无订阅，请先添加订阅源</div>
+      <div v-if="!subscriptions.length" class="empty">{{t('empty_subs')}}</div>
     </div>
   </div>
 
@@ -196,53 +231,53 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
   <div v-if="tab==='nodes'">
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
-        <h2>节点管理 <span class="badge">{{enabledNodes}}/{{nodes.length}} 已启用</span></h2>
-        <button class="btn btn-primary btn-sm" @click="openAddNode">+ 添加节点</button>
+        <h2>{{t('nodes_title')}} <span class="badge">{{enabledNodes}}/{{nodes.length}} {{t('nodes_enabled_suffix')}}</span></h2>
+        <button class="btn btn-primary btn-sm" @click="openAddNode">{{t('btn_add_node')}}</button>
       </div>
       <div v-if="nodes.length" style="margin-bottom:12px;display:flex;gap:12px;flex-wrap:wrap">
-        <input v-model="nodeFilter" placeholder="搜索节点名称..." style="max-width:260px">
+        <input v-model="nodeFilter" :placeholder="t('nodes_search_ph')" style="max-width:260px">
         <select v-model="nodeSubFilter" style="width:auto;min-width:120px">
-          <option value="">全部订阅</option>
-          <option value="本地">本地</option>
+          <option value="">{{t('nodes_filter_all')}}</option>
+          <option value="本地">{{t('val_local_tag')}}</option>
           <option v-for="s in subscriptions" :value="s.name" :key="s.id">{{s.name}}</option>
         </select>
       </div>
       <div style="overflow-x:auto">
       <table v-if="filteredNodes.length">
-        <thead><tr><th>订阅</th><th>名称</th><th>别名</th><th>协议</th><th>服务器</th><th>端口</th><th>启用</th><th>操作</th></tr></thead>
+        <thead><tr><th>{{t('tab_subs')}}</th><th>{{t('col_name')}}</th><th>{{t('col_alias')}}</th><th>{{t('col_proto')}}</th><th>{{t('col_server')}}</th><th>{{t('col_port')}}</th><th>{{t('col_enabled')}}</th><th>{{t('col_actions')}}</th></tr></thead>
         <tbody>
           <template v-for="(n,i) in filteredNodes" :key="n.id">
             <tr v-if="i>0&&n.sub_name!==filteredNodes[i-1].sub_name" style="height:2px"><td colspan="8" style="padding:0;background:#e5e7eb;border:none"></td></tr>
             <tr>
-              <td><span class="tag" :class="n.sub_name==='本地'?'tag-orange':'tag-blue'" v-if="n.sub_name">{{n.sub_name}}</span></td>
+              <td><span class="tag" :class="n.sub_name==='本地'?'tag-orange':'tag-blue'" v-if="n.sub_name">{{n.sub_name==='本地'?t('val_local_tag'):n.sub_name}}</span></td>
               <td>{{n.name}}</td>
-              <td><input class="inline-input" :value="n.alias" @blur="saveAlias(n,$event.target.value)" @keyup.enter="$event.target.blur()" placeholder="自定义别名"></td>
+              <td><input class="inline-input" :value="n.alias" @blur="saveAlias(n,$event.target.value)" @keyup.enter="$event.target.blur()" :placeholder="t('alias_ph')"></td>
               <td><span class="tag tag-blue">{{n.type}}</span></td>
               <td style="font-family:monospace;font-size:13px">{{n.server}}</td>
               <td>{{n.port}}</td>
               <td><label class="toggle"><input type="checkbox" :checked="n.enabled" @change="toggleNode(n.id,$event.target.checked)"><span class="slider"></span></label></td>
               <td style="white-space:nowrap">
-                <button class="btn-text" @click="openEditNode(n)">编辑</button>
-                <button class="btn-text danger" @click="delNode(n.id)" v-if="n.sub_name==='本地'">删除</button>
+                <button class="btn-text" @click="openEditNode(n)">{{t('btn_edit')}}</button>
+                <button class="btn-text danger" @click="delNode(n.id)" v-if="n.sub_name==='本地'">{{t('btn_delete')}}</button>
               </td>
             </tr>
           </template>
         </tbody>
       </table>
       </div>
-      <div v-if="!filteredNodes.length" class="empty">{{nodes.length?'无匹配节点':'暂无节点，请先添加并拉取订阅'}}</div>
+      <div v-if="!filteredNodes.length" class="empty">{{nodes.length?t('empty_nodes_match'):t('empty_nodes')}}</div>
     </div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" @click="showAliasPresets=!showAliasPresets">
-        <h2 style="margin-bottom:0">预设别名</h2>
-        <span style="font-size:13px;color:#6b7280">{{showAliasPresets?'收起':'展开'}}</span>
+        <h2 style="margin-bottom:0">{{t('alias_presets')}}</h2>
+        <span style="font-size:13px;color:#6b7280">{{showAliasPresets?t('btn_collapse'):t('btn_expand')}}</span>
       </div>
       <template v-if="showAliasPresets">
-        <p style="font-size:13px;color:#6b7280;margin:8px 0">每行一条规则，格式：关键字 = 别名。节点名称包含关键字时自动填充别名（仅对空别名生效）。</p>
+        <p style="font-size:13px;color:#6b7280;margin:8px 0">{{t('alias_presets_hint')}}</p>
         <textarea v-model="aliasPresetsText" rows="6" placeholder="香港 = HK&#10;台湾 = TW&#10;日本 = JP&#10;新加坡 = SG"></textarea>
         <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn btn-primary btn-sm" @click="saveAliasPresets">保存</button>
-          <button class="btn btn-ghost btn-sm" @click="applyAliasPresets">应用预设</button>
+          <button class="btn btn-primary btn-sm" @click="saveAliasPresets">{{t('btn_save')}}</button>
+          <button class="btn btn-ghost btn-sm" @click="applyAliasPresets">{{t('btn_apply')}}</button>
         </div>
       </template>
     </div>
@@ -252,12 +287,12 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
   <div v-if="tab==='services'">
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2 style="margin-bottom:0">服务规则 <span class="badge">{{services.length}}</span></h2>
-        <button class="btn btn-primary btn-sm" @click="openAddSvc">+ 添加规则</button>
+        <h2 style="margin-bottom:0">{{t('services_title')}} <span class="badge">{{services.length}}</span></h2>
+        <button class="btn btn-primary btn-sm" @click="openAddSvc">{{t('btn_add_service')}}</button>
       </div>
       <div style="overflow-x:auto">
       <table v-if="services.length">
-        <thead><tr><th>排序</th><th>启用</th><th>图标</th><th>名称</th><th>类型</th><th>默认节点</th><th>规则数</th><th>更新时间</th><th>操作</th><th>自动刷新</th></tr></thead>
+        <thead><tr><th>{{t('col_sort')}}</th><th>{{t('col_enabled')}}</th><th>{{t('col_icon')}}</th><th>{{t('col_name')}}</th><th>{{t('col_type')}}</th><th>{{t('col_default_proxy')}}</th><th>{{t('col_direct_rule')}}</th><th>{{t('col_rule_count')}}</th><th>{{t('col_updated')}}</th><th>{{t('col_actions')}}</th><th>{{t('col_auto')}}</th></tr></thead>
         <tbody>
           <tr v-for="(s,i) in services" :key="s.id">
             <td style="white-space:nowrap">
@@ -267,52 +302,75 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
             <td><label class="toggle"><input type="checkbox" :checked="s.enabled" @change="toggleSvcEnabled(s)"><span class="slider"></span></label></td>
             <td><img v-if="s.icon&&s.icon.startsWith('http')" :src="s.icon" style="width:20px;height:20px;vertical-align:middle;border-radius:4px"><span v-else>{{s.icon}}</span></td>
             <td><strong>{{s.name}}</strong></td>
-            <td><span class="tag" :class="s.rule_type==='local'?'tag-orange':'tag-blue'">{{s.rule_type==='local'?'本地':'远程'}}</span></td>
+            <td><span class="tag" :class="s.rule_type==='local'?'tag-orange':'tag-blue'">{{s.rule_type==='local'?t('type_local'):t('type_remote')}}</span></td>
             <td><span class="tag" :class="s.default_proxy==='DIRECT'?'tag-green':s.default_proxy==='REJECT'?'tag-orange':'tag-blue'">{{s.default_proxy}}</span></td>
+            <td><label class="toggle"><input type="checkbox" :checked="s.direct_rule" @change="toggleSvcDirectRule(s)"><span class="slider"></span></label></td>
             <td>{{s.rule_count}}</td>
             <td>{{formatDate(s.last_fetched)}}</td>
             <td style="white-space:nowrap">
-              <button class="btn-text" @click="editSvc(s)">编辑</button>
-              <button class="btn-text" @click="fetchSvcRules(s.id)" v-if="s.rule_type!=='local'">刷新</button>
-              <button class="btn-text danger" @click="delSvc(s.id)">删除</button>
+              <button class="btn-text" @click="editSvc(s)">{{t('btn_edit')}}</button>
+              <button class="btn-text" @click="fetchSvcRules(s.id)" v-if="s.rule_type!=='local'">{{t('btn_refresh')}}</button>
+              <button class="btn-text danger" @click="delSvc(s.id)">{{t('btn_delete')}}</button>
             </td>
             <td><label class="toggle" v-if="s.rule_type!=='local'"><input type="checkbox" :checked="s.auto_refresh" @change="toggleSvcAutoRefresh(s)"><span class="slider"></span></label></td>
           </tr>
         </tbody>
       </table>
       </div>
-      <div v-if="!services.length" class="empty">暂无服务规则</div>
+      <div v-if="!services.length" class="empty">{{t('empty_services')}}</div>
     </div>
 
     <!-- DNS 预设 -->
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2 style="margin-bottom:0">DNS 配置 <span class="badge">{{dnsPresets.length}}</span></h2>
-        <button class="btn btn-primary btn-sm" @click="openAddDns">+ 添加配置</button>
+        <h2 style="margin-bottom:0">{{t('dns_title')}} <span class="badge">{{dnsPresets.length}}</span></h2>
+        <button class="btn btn-primary btn-sm" @click="openAddDns">{{t('btn_add_dns')}}</button>
       </div>
       <table v-if="dnsPresets.length">
-        <thead><tr><th>名称</th><th>类型</th><th>操作</th></tr></thead>
+        <thead><tr><th>{{t('col_name')}}</th><th>{{t('col_type')}}</th><th>{{t('col_actions')}}</th></tr></thead>
         <tbody>
           <tr v-for="d in dnsPresets" :key="d.id">
             <td><strong>{{d.name}}</strong></td>
-            <td><span class="tag" :class="d.builtin?'tag-green':'tag-blue'">{{d.builtin?'默认':'自定义'}}</span></td>
+            <td><span class="tag" :class="d.builtin?'tag-green':'tag-blue'">{{d.builtin?t('type_default'):t('type_custom')}}</span></td>
             <td>
-              <button class="btn-text" @click="editDns(d)">编辑</button>
-              <button class="btn-text danger" @click="delDns(d.id)">删除</button>
+              <button class="btn-text" @click="editDns(d)">{{t('btn_edit')}}</button>
+              <button class="btn-text danger" @click="delDns(d.id)">{{t('btn_delete')}}</button>
             </td>
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Hosts 预设 -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="margin-bottom:0">{{t('hosts_title')}} <span class="badge">{{hostsPresets.length}}</span></h2>
+        <button class="btn btn-primary btn-sm" @click="openAddHosts">{{t('btn_add_hosts')}}</button>
+      </div>
+      <table v-if="hostsPresets.length">
+        <thead><tr><th>{{t('col_name')}}</th><th>{{t('col_type')}}</th><th>{{t('col_actions')}}</th></tr></thead>
+        <tbody>
+          <tr v-for="h in hostsPresets" :key="h.id">
+            <td><strong>{{h.name}}</strong></td>
+            <td><span class="tag" :class="h.builtin?'tag-green':'tag-blue'">{{h.builtin?t('type_default'):t('type_custom')}}</span></td>
+            <td>
+              <button class="btn-text" @click="editHosts(h)">{{t('btn_edit')}}</button>
+              <button class="btn-text danger" @click="delHosts(h.id)">{{t('btn_delete')}}</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div v-else class="empty">{{t('empty_hosts')}}</div>
     </div>
   </div>
 
   <!-- ============ 订阅分发 ============ -->
   <div v-if="tab==='profiles'">
     <div class="card">
-      <h2>创建订阅分发</h2>
+      <h2>{{t('profile_create')}}</h2>
       <div class="form-row">
-        <div class="field"><label>名称</label><input v-model="newProfile.name" placeholder="如：手机、路由器"></div>
-        <div><button class="btn btn-primary" @click="addProfile" :disabled="!newProfile.name">创建</button></div>
+        <div class="field"><label>{{t('subs_name')}}</label><input v-model="newProfile.name" :placeholder="t('profile_name_ph')"></div>
+        <div><button class="btn btn-primary" @click="addProfile" :disabled="!newProfile.name">{{t('btn_create')}}</button></div>
       </div>
     </div>
 
@@ -321,33 +379,33 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
         <h2 style="margin-bottom:0">
           <template v-if="renamingProfileId===p.id">
             <input v-model="renamingProfileName" @keyup.enter="confirmRenameProfile" @keyup.escape="cancelRenameProfile" style="font-size:inherit;padding:2px 6px;border:1px solid #3b82f6;border-radius:4px;outline:none;width:160px" ref="renameInput">
-            <button class="btn btn-primary btn-sm" @click="confirmRenameProfile" style="margin-left:4px">确认</button>
-            <button class="btn btn-ghost btn-sm" @click="cancelRenameProfile">取消</button>
+            <button class="btn btn-primary btn-sm" @click="confirmRenameProfile" style="margin-left:4px">{{t('btn_confirm')}}</button>
+            <button class="btn btn-ghost btn-sm" @click="cancelRenameProfile">{{t('btn_cancel')}}</button>
           </template>
           <template v-else>
             {{p.name}}
           </template>
-          <span class="badge" :class="p.enabled?'':'badge-gray'">{{p.enabled?'已启用':'已停用'}}</span>
-          <span v-if="isExpired(p)" class="badge" style="background:#fef2f2;color:#dc2626">已过期</span>
+          <span class="badge" :class="p.enabled?'':'badge-gray'">{{p.enabled?t('badge_enabled'):t('badge_disabled')}}</span>
+          <span v-if="isExpired(p)" class="badge" style="background:#fef2f2;color:#dc2626">{{t('badge_expired')}}</span>
         </h2>
         <div style="display:flex;gap:8px;align-items:center">
           <button class="btn-icon" @click="moveProfile(pi,-1)" :disabled="pi===0" style="font-size:12px">↑</button>
           <button class="btn-icon" @click="moveProfile(pi,1)" :disabled="pi===profiles.length-1" style="font-size:12px">↓</button>
-          <button v-if="renamingProfileId!==p.id" class="btn-text" @click="renameProfile(p)">重命名</button>
-          <button class="btn btn-ghost btn-sm" @click="expandProfile(p.id)">{{expandedProfile===p.id?'收起':'编辑'}}</button>
+          <button v-if="renamingProfileId!==p.id" class="btn-text" @click="renameProfile(p)">{{t('btn_rename')}}</button>
+          <button class="btn btn-ghost btn-sm" @click="expandProfile(p.id)">{{expandedProfile===p.id?t('btn_collapse'):t('btn_edit')}}</button>
           <label class="toggle"><input type="checkbox" :checked="p.enabled" @change="patchProfile(p.id,{enabled:$event.target.checked})"><span class="slider"></span></label>
-          <button class="btn btn-danger btn-sm" @click="delProfile(p.id)">删除</button>
+          <button class="btn btn-danger btn-sm" @click="delProfile(p.id)">{{t('btn_delete')}}</button>
         </div>
       </div>
       <div class="sub-url" style="margin-top:12px">
         <input :value="subUrl(p.published_token||p.token)" readonly @click="$event.target.select()">
-        <button class="btn btn-ghost" @click="copyUrl(p.published_token||p.token)">复制</button>
+        <button class="btn btn-ghost" @click="copyUrl(p.published_token||p.token)">{{t('btn_copy')}}</button>
         <template v-if="activeMode==='local'">
-          <button class="btn btn-primary btn-sm" @click="publishProfile(p)">{{p.published_token?'更新发布':'发布'}}</button>
-          <button class="btn btn-ghost btn-sm" @click="downloadLocalConfig(p)">下载</button>
+          <button class="btn btn-primary btn-sm" @click="publishProfile(p)">{{p.published_token?t('btn_publish_update'):t('btn_publish')}}</button>
+          <button class="btn btn-ghost btn-sm" @click="downloadLocalConfig(p)">{{t('btn_download')}}</button>
         </template>
         <template v-else>
-          <button class="btn btn-ghost btn-sm" @click="downloadConfig(p.token)">下载</button>
+          <button class="btn btn-ghost btn-sm" @click="downloadConfig(p.token)">{{t('btn_download')}}</button>
         </template>
       </div>
 
@@ -355,25 +413,32 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
       <template v-if="expandedProfile===p.id">
         <!-- Settings -->
         <div class="section">
-          <h3>配置选项</h3>
+          <h3>{{t('profile_options')}}</h3>
           <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;font-size:13px">
             <div style="display:flex;align-items:center;gap:6px">
-              <span>有效期：</span>
+              <span>{{t('profile_expires')}}</span>
               <input type="date" :value="p.expires_at?p.expires_at.split('T')[0]:''" @change="patchProfile(p.id,{expires_at:$event.target.value?new Date($event.target.value+'T23:59:59').toISOString():null})" style="width:auto;padding:4px 8px;font-size:13px">
             </div>
             <div style="display:flex;align-items:center;gap:6px">
-              <span>GEOIP 中国直连：</span>
+              <span>{{t('profile_geoip')}}</span>
               <label class="toggle"><input type="checkbox" :checked="p.geoip_cn" @change="patchProfile(p.id,{geoip_cn:$event.target.checked})"><span class="slider"></span></label>
             </div>
             <div style="display:flex;align-items:center;gap:6px">
-              <span>全局兜底：</span>
+              <span>{{t('profile_catchall')}}</span>
               <label class="toggle"><input type="checkbox" :checked="p.catch_all" @change="patchProfile(p.id,{catch_all:$event.target.checked})"><span class="slider"></span></label>
             </div>
             <div style="display:flex;align-items:center;gap:6px">
-              <span>DNS预设：</span>
+              <span>{{t('profile_dns')}}</span>
               <select :value="p.dns_preset_id||0" @change="patchProfile(p.id,{dns_preset_id:+$event.target.value})" style="width:auto;min-width:120px;padding:4px 8px;font-size:13px">
-                <option :value="0">默认</option>
+                <option :value="0">{{t('profile_default')}}</option>
                 <option v-for="d in dnsPresets" :value="d.id" :key="d.id">{{d.name}}</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span>{{t('profile_hosts')}}</span>
+              <select :value="p.hosts_preset_id||0" @change="patchProfile(p.id,{hosts_preset_id:+$event.target.value})" style="width:auto;min-width:120px;padding:4px 8px;font-size:13px">
+                <option :value="0">{{t('profile_default')}}</option>
+                <option v-for="h in hostsPresets" :value="h.id" :key="h.id">{{h.name}}</option>
               </select>
             </div>
           </div>
@@ -381,15 +446,15 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 
         <!-- Node Selector -->
         <div class="section">
-          <h3>节点选择 <span class="badge">{{profileEnabledNodeCount}}/{{profileNodeData.length}}</span>
-            <button class="btn-text" @click="batchProfileNodes(true)" style="margin-left:auto">全选</button>
-            <button class="btn-text" @click="batchProfileNodes(false)">全不选</button>
+          <h3>{{t('profile_nodes')}} <span class="badge">{{profileEnabledNodeCount}}/{{profileNodeData.length}}</span>
+            <button class="btn-text" @click="batchProfileNodes(true)" style="margin-left:auto">{{t('btn_select_all')}}</button>
+            <button class="btn-text" @click="batchProfileNodes(false)">{{t('btn_select_none')}}</button>
           </h3>
           <div v-for="(nodes,subName) in groupedProfileNodes" :key="subName" class="node-group">
             <h4>
-              {{subName||'未分组'}}
-              <button class="btn-text" @click="batchProfileNodeGroup(subName,true)" style="font-size:12px">全选</button>
-              <button class="btn-text" @click="batchProfileNodeGroup(subName,false)" style="font-size:12px">取消</button>
+              {{subName==='本地'?t('val_local_tag'):(subName||'未分组')}}
+              <button class="btn-text" @click="batchProfileNodeGroup(subName,true)" style="font-size:12px">{{t('btn_select_all')}}</button>
+              <button class="btn-text" @click="batchProfileNodeGroup(subName,false)" style="font-size:12px">{{t('btn_select_cancel')}}</button>
             </h4>
             <div class="node-grid">
               <label class="node-item" v-for="n in nodes" :key="n.node_id">
@@ -398,16 +463,17 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
               </label>
             </div>
           </div>
-          <div v-if="!profileNodeData.length" class="empty" style="padding:16px">暂无节点</div>
+          <div v-if="!profileNodeData.length" class="empty" style="padding:16px">{{t('empty_profile_nodes')}}</div>
         </div>
 
         <!-- Service Rules -->
         <div class="section">
-          <h3 style="display:flex;align-items:center">服务规则 <span class="badge">{{profileEnabledSvcCount}}/{{profileSvcData.length}}</span>
-            <button class="btn-text" @click="resetProfileSvcOrder" style="margin-left:auto">重置规则</button>
+          <h3 style="display:flex;align-items:center;gap:8px">{{t('profile_services')}} <span class="badge">{{profileEnabledSvcCount}}/{{profileSvcData.length}}</span>
+            <button class="btn-text" @click="syncProfileSvcRules(p.id)" style="margin-left:auto">{{t('btn_sync_rules')}}</button>
+            <button class="btn-text" @click="resetProfileSvcOrder">{{t('btn_reset_rules')}}</button>
           </h3>
           <table v-if="profileSvcData.length" style="font-size:13px">
-            <thead><tr><th>启用</th><th>排序</th><th>图标</th><th>名称</th><th>默认节点</th><th>规则数</th></tr></thead>
+            <thead><tr><th>{{t('col_enabled')}}</th><th>{{t('col_sort')}}</th><th>{{t('col_icon')}}</th><th>{{t('col_name')}}</th><th>{{t('col_default_proxy')}}</th><th>{{t('col_rule_count')}}</th></tr></thead>
             <tbody>
               <tr v-for="(s,i) in profileSvcData" :key="s.service_group_id">
                 <td><label class="toggle"><input type="checkbox" :checked="s.enabled" @change="toggleProfileSvc(s.service_group_id,$event.target.checked)"><span class="slider"></span></label></td>
@@ -418,12 +484,13 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
                 <td><img v-if="s.icon&&s.icon.startsWith('http')" :src="s.icon" style="width:20px;height:20px;vertical-align:middle;border-radius:4px"><span v-else>{{s.icon}}</span></td>
                 <td>{{s.name}}</td>
                 <td>
-                  <select :value="s.default_proxy_override||''" @change="updateProfileSvcProxy(s.service_group_id,$event.target.value)" style="width:auto;min-width:100px;padding:3px 6px;font-size:12px">
-                    <option value="">继承 ({{s.default_proxy}})</option>
-                    <option value="自动选择">自动选择</option>
-                    <option value="节点选择">节点选择</option>
-                    <option value="DIRECT">直连 (DIRECT)</option>
-                    <option value="REJECT">拒绝 (REJECT)</option>
+                  <span v-if="s.direct_rule" class="tag tag-green" :title="t('svc_direct_label')">{{t('col_direct_rule')}} → {{s.default_proxy}}</span>
+                  <select v-else :value="s.default_proxy_override||''" @change="updateProfileSvcProxy(s.service_group_id,$event.target.value)" style="width:auto;min-width:100px;padding:3px 6px;font-size:12px">
+                    <option value="">{{t('inherit')}} ({{s.default_proxy}})</option>
+                    <option value="自动选择">{{t('proxy_auto')}}</option>
+                    <option value="节点选择">{{t('proxy_select')}}</option>
+                    <option value="DIRECT">{{t('proxy_direct')}}</option>
+                    <option value="REJECT">{{t('proxy_reject')}}</option>
                     <option v-for="n in profileEnabledNodes" :key="n.node_id" :value="nodeDisplayName(n)">{{nodeDisplayName(n)}}</option>
                   </select>
                 </td>
@@ -435,14 +502,14 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 
         <!-- Preview -->
         <div style="margin-top:16px;text-align:right">
-          <button class="btn btn-primary" @click="previewProfileConfig(p.id)">{{profilePreview===p.id?'关闭预览':'预览配置'}}</button>
+          <button class="btn btn-primary" @click="previewProfileConfig(p.id)">{{profilePreview===p.id?t('btn_preview_close'):t('btn_preview')}}</button>
         </div>
         <div v-if="profilePreview===p.id" style="margin-top:12px">
           <pre class="preview">{{profilePreviewContent}}</pre>
         </div>
       </template>
     </div>
-    <div v-if="!profiles.length" class="card"><div class="empty">暂无订阅分发，请先创建</div></div>
+    <div v-if="!profiles.length" class="card"><div class="empty">{{t('empty_profiles')}}</div></div>
   </div>
 </div>
 </template>
@@ -450,34 +517,40 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 <!-- Edit Service Modal -->
 <div v-if="svcModal" class="modal-overlay" @click.self="svcModal=false">
   <div class="modal">
-    <h3>{{editingSvcId?'编辑服务规则':'添加服务规则'}}</h3>
+    <h3>{{editingSvcId?t('modal_svc_edit'):t('modal_svc_add')}}</h3>
     <div class="form-row">
-      <div class="field"><label>名称</label><input v-model="svcForm.name" placeholder="如：Google"></div>
-      <div class="field"><label>图标</label><input v-model="svcForm.icon" placeholder="🔍"></div>
+      <div class="field"><label>{{t('col_name')}}</label><input v-model="svcForm.name" placeholder="Google"></div>
+      <div class="field"><label>{{t('col_icon')}}</label><input v-model="svcForm.icon" :placeholder="t('svc_icon_ph')"></div>
     </div>
     <div class="form-row">
-      <div class="field"><label>默认节点</label>
-        <select v-model="svcForm.default_proxy"><option value="自动选择">自动选择</option><option value="DIRECT">直连 (DIRECT)</option><option value="REJECT">拒绝 (REJECT)</option></select>
+      <div class="field"><label>{{t('svc_default')}}</label>
+        <select v-model="svcForm.default_proxy"><option value="自动选择">{{t('proxy_auto')}}</option><option value="DIRECT">{{t('proxy_direct')}}</option><option value="REJECT">{{t('proxy_reject')}}</option></select>
       </div>
-      <div class="field"><label>规则类型</label>
-        <select v-model="svcForm.rule_type"><option value="remote">远程</option><option value="local">本地</option></select>
+      <div class="field"><label>{{t('svc_rule_type')}}</label>
+        <select v-model="svcForm.rule_type"><option value="remote">{{t('type_remote')}}</option><option value="local">{{t('type_local')}}</option></select>
       </div>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" v-model="svcForm.direct_rule" style="width:auto">
+        <span>{{t('svc_direct_label')}}</span>
+      </label>
     </div>
     <div v-if="svcForm.rule_type==='remote'" class="form-row">
-      <div class="field"><label>规则链接 (YAML，每行一个链接)</label><textarea v-model="svcForm.rule_url" rows="3" placeholder="https://cdn.jsdelivr.net/...&#10;https://cdn.jsdelivr.net/...（多个链接请换行）" style="min-height:60px"></textarea></div>
+      <div class="field"><label>{{t('svc_url_label')}}</label><textarea v-model="svcForm.rule_url" rows="3" :placeholder="t('svc_url_ph')" style="min-height:60px"></textarea></div>
     </div>
     <div v-if="svcForm.rule_type==='local'">
-      <div class="field" style="margin-bottom:12px"><label>规则内容 (YAML payload 格式)</label>
+      <div class="field" style="margin-bottom:12px"><label>{{t('svc_content_label')}}</label>
         <textarea v-model="svcForm.cached_rules" rows="10" placeholder="payload:&#10;  - DOMAIN-SUFFIX,example.com&#10;  - DOMAIN-KEYWORD,example"></textarea>
       </div>
     </div>
     <div v-if="editingSvcId" style="margin-bottom:16px">
-      <button class="btn btn-ghost btn-sm" @click="previewSvcRules">预览规则</button>
+      <button class="btn btn-ghost btn-sm" @click="previewSvcRules">{{t('btn_preview_rules')}}</button>
       <div v-if="svcRulePreview" style="margin-top:8px;max-height:300px;overflow:auto;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px;font-family:monospace;font-size:12px;white-space:pre-wrap">{{svcRulePreview}}</div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-ghost" @click="svcModal=false">取消</button>
-      <button class="btn btn-primary" @click="saveSvc" :disabled="!svcForm.name||(svcForm.rule_type==='remote'&&!svcForm.rule_url.trim())">保存</button>
+      <button class="btn btn-ghost" @click="svcModal=false">{{t('btn_cancel')}}</button>
+      <button class="btn btn-primary" @click="saveSvc" :disabled="!svcForm.name||(svcForm.rule_type==='remote'&&!svcForm.rule_url.trim())">{{t('btn_save')}}</button>
     </div>
   </div>
 </div>
@@ -485,14 +558,29 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 <!-- DNS Preset Modal -->
 <div v-if="dnsModal" class="modal-overlay" @click.self="dnsModal=false">
   <div class="modal">
-    <h3>{{editingDnsId?'编辑 DNS 配置':'添加 DNS 配置'}}</h3>
-    <div class="form-row"><div class="field"><label>名称</label><input v-model="dnsForm.name" placeholder="如：海外DNS"></div></div>
-    <div class="field" style="margin-bottom:16px"><label>DNS 配置 (YAML)</label>
+    <h3>{{editingDnsId?t('modal_dns_edit'):t('modal_dns_add')}}</h3>
+    <div class="form-row"><div class="field"><label>{{t('col_name')}}</label><input v-model="dnsForm.name" :placeholder="t('dns_name_ph')"></div></div>
+    <div class="field" style="margin-bottom:16px"><label>{{t('dns_label')}}</label>
       <textarea v-model="dnsForm.config" rows="15" placeholder="enable: true&#10;ipv6: false&#10;enhanced-mode: fake-ip&#10;..."></textarea>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-ghost" @click="dnsModal=false">取消</button>
-      <button class="btn btn-primary" @click="saveDns" :disabled="!dnsForm.name||!dnsForm.config">保存</button>
+      <button class="btn btn-ghost" @click="dnsModal=false">{{t('btn_cancel')}}</button>
+      <button class="btn btn-primary" @click="saveDns" :disabled="!dnsForm.name||!dnsForm.config">{{t('btn_save')}}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hosts Preset Modal -->
+<div v-if="hostsModal" class="modal-overlay" @click.self="hostsModal=false">
+  <div class="modal">
+    <h3>{{editingHostsId?t('modal_hosts_edit'):t('modal_hosts_add')}}</h3>
+    <div class="form-row"><div class="field"><label>{{t('col_name')}}</label><input v-model="hostsForm.name" :placeholder="t('hosts_name_ph')"></div></div>
+    <div class="field" style="margin-bottom:16px"><label>{{t('hosts_label')}}</label>
+      <textarea v-model="hostsForm.config" rows="15" placeholder="example.com: 1.2.3.4&#10;'*.example.com': 1.2.3.4"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" @click="hostsModal=false">{{t('btn_cancel')}}</button>
+      <button class="btn btn-primary" @click="saveHosts" :disabled="!hostsForm.name||!hostsForm.config">{{t('btn_save')}}</button>
     </div>
   </div>
 </div>
@@ -500,13 +588,13 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 <!-- Account Settings Modal -->
 <div v-if="pwdModal" class="modal-overlay" @click.self="pwdModal=false">
   <div class="modal" style="width:400px">
-    <h3>账号设置</h3>
-    <div class="form-row"><div class="field"><label>新用户名（留空不修改）</label><input v-model="pwdForm.new_username" :placeholder="currentUsername"></div></div>
-    <div class="form-row"><div class="field"><label>当前密码（必填）</label><div class="pwd-wrapper"><input :type="showOldPwd?'text':'password'" v-model="pwdForm.old_password"><button type="button" class="btn-eye" @click="showOldPwd=!showOldPwd"><svg v-if="!showOldPwd" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg><svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg></button></div></div></div>
-    <div class="form-row"><div class="field"><label>新密码（留空不修改）</label><div class="pwd-wrapper"><input :type="showNewPwd?'text':'password'" v-model="pwdForm.new_password" @keyup.enter="changePwd"><button type="button" class="btn-eye" @click="showNewPwd=!showNewPwd"><svg v-if="!showNewPwd" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg><svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg></button></div></div></div>
+    <h3>{{t('modal_account')}}</h3>
+    <div class="form-row"><div class="field"><label>{{t('pwd_new_user')}}</label><input v-model="pwdForm.new_username" :placeholder="currentUsername"></div></div>
+    <div class="form-row"><div class="field"><label>{{t('pwd_old')}}</label><div class="pwd-wrapper"><input :type="showOldPwd?'text':'password'" v-model="pwdForm.old_password"><button type="button" tabindex="-1" class="btn-eye" @click="showOldPwd=!showOldPwd"><svg v-if="!showOldPwd" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg><svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg></button></div></div></div>
+    <div class="form-row"><div class="field"><label>{{t('pwd_new')}}</label><div class="pwd-wrapper"><input :type="showNewPwd?'text':'password'" v-model="pwdForm.new_password" @keyup.enter="changePwd"><button type="button" tabindex="-1" class="btn-eye" @click="showNewPwd=!showNewPwd"><svg v-if="!showNewPwd" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg><svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/></svg></button></div></div></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
-      <button class="btn btn-ghost" @click="pwdModal=false">取消</button>
-      <button class="btn btn-primary" @click="changePwd" :disabled="!pwdForm.old_password||(!pwdForm.new_password&&!pwdForm.new_username)">确认修改</button>
+      <button class="btn btn-ghost" @click="pwdModal=false">{{t('btn_cancel')}}</button>
+      <button class="btn btn-primary" @click="changePwd" :disabled="!pwdForm.old_password||(!pwdForm.new_password&&!pwdForm.new_username)">{{t('btn_confirm_change')}}</button>
     </div>
   </div>
 </div>
@@ -514,16 +602,16 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 <!-- Subscription Edit Modal -->
 <div v-if="subEditModal" class="modal-overlay" @click.self="subEditModal=false">
   <div class="modal">
-    <h3>编辑订阅源</h3>
-    <div class="form-row"><div class="field"><label>名称</label><input v-model="subEditForm.name"></div></div>
-    <div class="form-row"><div class="field"><label>订阅地址</label><input v-model="subEditForm.url" placeholder="https://..."></div></div>
-    <div class="form-row"><div class="field"><label>排除关键字（逗号分隔，节点名包含关键字将被过滤）</label><input v-model="subEditForm.exclude_keywords" placeholder="剩余流量,过期时间"></div></div>
-    <div class="field" style="margin-bottom:16px"><label>订阅原文（可选，粘贴后将直接导入节点）</label>
-      <textarea v-model="subEditForm.content" rows="10" placeholder="粘贴 YAML 或 Base64 格式的订阅内容..."></textarea>
+    <h3>{{t('modal_sub_edit')}}</h3>
+    <div class="form-row"><div class="field"><label>{{t('col_name')}}</label><input v-model="subEditForm.name"></div></div>
+    <div class="form-row"><div class="field"><label>{{t('subs_url')}}</label><input v-model="subEditForm.url" :placeholder="t('subs_url_ph')"></div></div>
+    <div class="form-row"><div class="field"><label>{{t('sub_exclude_label')}}</label><input v-model="subEditForm.exclude_keywords" :placeholder="t('sub_exclude_ph')"></div></div>
+    <div class="field" style="margin-bottom:16px"><label>{{t('sub_content_label')}}</label>
+      <textarea v-model="subEditForm.content" rows="10" :placeholder="t('sub_content_ph')"></textarea>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-ghost" @click="subEditModal=false">取消</button>
-      <button class="btn btn-primary" @click="saveEditSub">保存</button>
+      <button class="btn btn-ghost" @click="subEditModal=false">{{t('btn_cancel')}}</button>
+      <button class="btn btn-primary" @click="saveEditSub">{{t('btn_save')}}</button>
     </div>
   </div>
 </div>
@@ -531,29 +619,29 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 <!-- Node Edit Modal -->
 <div v-if="nodeEditModal" class="modal-overlay" @click.self="nodeEditModal=false">
   <div class="modal">
-    <h3>{{nodeEditForm.id?'编辑节点':'添加节点'}}</h3>
+    <h3>{{nodeEditForm.id?t('modal_node_edit'):t('modal_node_add')}}</h3>
     <div v-if="nodeEditForm.id && nodeEditForm.subscription_id > 0" style="background:#fef3c7;color:#92400e;padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:16px">
-      ⚠ 此节点来自订阅源，订阅自动更新时将覆盖当前修改。
+      {{t('node_warn_sub')}}
     </div>
     <div v-if="!nodeEditForm.id">
       <div class="form-row">
-        <div class="field"><label>名称</label><input v-model="nodeEditForm.name" placeholder="节点名称"></div>
-        <div class="field"><label>协议</label>
+        <div class="field"><label>{{t('col_name')}}</label><input v-model="nodeEditForm.name" :placeholder="t('node_name_ph')"></div>
+        <div class="field"><label>{{t('col_proto')}}</label>
           <select v-model="nodeEditForm.type"><option value="vless">VLESS</option><option value="vmess">VMess</option><option value="ss">SS</option><option value="trojan">Trojan</option></select>
         </div>
       </div>
       <div class="form-row">
-        <div class="field"><label>服务器</label><input v-model="nodeEditForm.server" placeholder="example.com"></div>
-        <div class="field" style="flex:0 0 120px"><label>端口</label><input type="number" v-model.number="nodeEditForm.port" placeholder="443"></div>
+        <div class="field"><label>{{t('col_server')}}</label><input v-model="nodeEditForm.server" :placeholder="t('node_server_ph')"></div>
+        <div class="field" style="flex:0 0 120px"><label>{{t('col_port')}}</label><input type="number" v-model.number="nodeEditForm.port" placeholder="443"></div>
       </div>
     </div>
     <div class="field" style="margin-bottom:16px">
-      <label>原始配置 (JSON)</label>
+      <label>{{t('node_raw_label')}}</label>
       <textarea v-model="nodeEditForm.raw_config" rows="12" placeholder='{"name":"...","type":"vless","server":"...","port":443,...}'></textarea>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-ghost" @click="nodeEditModal=false">取消</button>
-      <button class="btn btn-primary" @click="saveNodeEdit">保存</button>
+      <button class="btn btn-ghost" @click="nodeEditModal=false">{{t('btn_cancel')}}</button>
+      <button class="btn btn-primary" @click="saveNodeEdit">{{t('btn_save')}}</button>
     </div>
   </div>
 </div>
@@ -561,35 +649,36 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 <!-- Import/Export Modal -->
 <div v-if="ieModal" class="modal-overlay" @click.self="ieModal=false">
   <div class="modal" style="width:500px">
-    <h3>数据管理</h3>
+    <h3>{{t('modal_data')}}</h3>
     <div style="display:flex;gap:12px;margin-bottom:20px">
-      <button class="btn btn-primary" @click="doExport" style="flex:1">导出配置</button>
+      <button class="btn btn-primary" @click="doExport" style="flex:1">{{t('btn_export')}}</button>
     </div>
     <div style="border:2px dashed #d1d5db;border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:.2s" @click="$refs.importFile.click()" @dragover.prevent @drop.prevent="handleImportDrop">
       <input type="file" ref="importFile" accept=".json" style="display:none" @change="handleImportFile">
-      <div style="color:#6b7280;font-size:14px">点击选择或拖放 JSON 文件导入配置</div>
+      <div style="color:#6b7280;font-size:14px">{{t('import_drop')}}</div>
     </div>
     <template v-if="importPreview">
       <div style="margin-top:16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px">
-        <h4 style="margin:0 0 12px;font-size:14px">导入预览</h4>
+        <h4 style="margin:0 0 12px;font-size:14px">{{t('import_preview')}}</h4>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
-          <div>订阅源: <strong>{{importPreview.subscriptions}}</strong></div>
-          <div>节点: <strong>{{importPreview.nodes}}</strong></div>
-          <div>服务规则: <strong>{{importPreview.services}}</strong></div>
-          <div>订阅分发: <strong>{{importPreview.profiles}}</strong></div>
-          <div>DNS预设: <strong>{{importPreview.dns_presets}}</strong></div>
+          <div>{{t('import_subs')}} <strong>{{importPreview.subscriptions}}</strong></div>
+          <div>{{t('import_nodes')}} <strong>{{importPreview.nodes}}</strong></div>
+          <div>{{t('import_services')}} <strong>{{importPreview.services}}</strong></div>
+          <div>{{t('import_profiles')}} <strong>{{importPreview.profiles}}</strong></div>
+          <div>{{t('import_dns')}} <strong>{{importPreview.dns_presets}}</strong></div>
+          <div>{{t('import_hosts')}} <strong>{{importPreview.hosts_presets}}</strong></div>
         </div>
         <div style="margin-top:16px;padding:12px;background:#fef3c7;border-radius:6px;font-size:13px;color:#92400e">
-          导入将覆盖现有配置（账号信息不会覆盖），是否继续？
+          {{t('import_warn')}}
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-          <button class="btn btn-ghost" @click="importPreview=null;importRawData=null">取消</button>
-          <button class="btn btn-danger" @click="doImport">确认导入</button>
+          <button class="btn btn-ghost" @click="importPreview=null;importRawData=null">{{t('btn_cancel')}}</button>
+          <button class="btn btn-danger" @click="doImport">{{t('btn_import_confirm')}}</button>
         </div>
       </div>
     </template>
     <div style="display:flex;justify-content:flex-end;margin-top:20px">
-      <button class="btn btn-ghost" @click="ieModal=false">关闭</button>
+      <button class="btn btn-ghost" @click="ieModal=false">{{t('btn_close')}}</button>
     </div>
   </div>
 </div>
@@ -600,8 +689,147 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 
 <script>
 const {createApp,ref,computed,onMounted} = Vue
+const I18N_MESSAGES = {
+  'zh-CN':{
+    brand:'SubForge',
+    tab_subs:'订阅源',tab_nodes:'节点管理',tab_services:'服务规则',tab_profiles:'订阅分发',
+    btn_account:'账号设置',btn_local_mode:'本地模式',btn_data:'数据管理',btn_logout:'登出',btn_switch_login:'切换登录',
+    badge_local_mode:'本地模式',
+    login_intro:'请登录以管理订阅和规则',login_user:'用户名',login_pwd:'密码',login_btn:'登录',login_switch_local:'切换本地模式',login_failed:'登录失败',login_neterr:'网络错误',
+    stat_subs:'订阅源',stat_nodes:'节点',stat_services:'服务规则',stat_total_rules:'规则总数',
+    subs_add:'添加订阅',subs_name:'名称',subs_name_ph:'如：我的机场',subs_url:'订阅地址',subs_url_ph:'https://...',btn_add:'添加',
+    subs_list:'订阅列表',
+    col_sort:'排序',col_name:'名称',col_url:'地址',col_nodes:'节点',col_traffic:'流量',col_expiry:'到期',col_updated:'更新时间',col_auto:'自动刷新',col_interval:'间隔',col_append_name:'附名',col_append_traffic:'附流量',col_actions:'操作',col_enabled:'启用',col_icon:'图标',col_type:'类型',col_default_proxy:'默认节点',col_rule_count:'规则数',col_alias:'别名',col_proto:'协议',col_server:'服务器',col_port:'端口',col_direct_rule:'直连',
+    val_local:'(本地)',val_local_tag:'本地',
+    btn_edit:'编辑',btn_fetch:'拉取',btn_delete:'删除',btn_refresh:'刷新',
+    empty_subs:'暂无订阅，请先添加订阅源',
+    nodes_title:'节点管理',nodes_enabled_suffix:'已启用',btn_add_node:'+ 添加节点',nodes_search_ph:'搜索节点名称...',nodes_filter_all:'全部订阅',
+    alias_ph:'自定义别名',
+    empty_nodes_match:'无匹配节点',empty_nodes:'暂无节点，请先添加并拉取订阅',
+    alias_presets:'预设别名',btn_collapse:'收起',btn_expand:'展开',alias_presets_hint:'每行一条规则，格式：关键字 = 别名。节点名称包含关键字时自动填充别名（仅对空别名生效）。',
+    btn_save:'保存',btn_apply:'应用预设',
+    services_title:'服务规则',btn_add_service:'+ 添加规则',
+    type_local:'本地',type_remote:'远程',
+    proxy_auto:'自动选择',proxy_direct:'直连 (DIRECT)',proxy_reject:'拒绝 (REJECT)',proxy_select:'节点选择',
+    empty_services:'暂无服务规则',
+    dns_title:'DNS 配置',btn_add_dns:'+ 添加配置',type_default:'默认',type_custom:'自定义',
+    hosts_title:'Hosts 配置',btn_add_hosts:'+ 添加配置',empty_hosts:'暂无 Hosts 配置',
+    profile_create:'创建订阅分发',profile_name_ph:'如：手机、路由器',btn_create:'创建',
+    badge_enabled:'已启用',badge_disabled:'已停用',badge_expired:'已过期',
+    btn_rename:'重命名',btn_confirm:'确认',btn_cancel:'取消',btn_copy:'复制',btn_download:'下载',btn_publish:'发布',btn_publish_update:'更新发布',
+    profile_options:'配置选项',profile_expires:'有效期：',profile_geoip:'GEOIP 中国直连：',profile_catchall:'全局兜底：',profile_dns:'DNS预设：',profile_hosts:'Hosts预设：',profile_default:'默认',
+    profile_nodes:'节点选择',btn_select_all:'全选',btn_select_none:'全不选',btn_select_cancel:'取消',
+    profile_services:'服务规则',btn_sync_rules:'同步规则',btn_reset_rules:'重置规则',
+    inherit:'继承',
+    btn_preview_close:'关闭预览',btn_preview:'预览配置',
+    empty_profiles:'暂无订阅分发，请先创建',
+    empty_profile_nodes:'暂无节点',
+    modal_svc_add:'添加服务规则',modal_svc_edit:'编辑服务规则',
+    svc_icon_ph:'🔍',svc_default:'默认节点',svc_rule_type:'规则类型',
+    svc_url_label:'规则链接 (YAML，每行一个链接)',svc_url_ph:'https://cdn.jsdelivr.net/...\nhttps://cdn.jsdelivr.net/...（多个链接请换行）',
+    svc_content_label:'规则内容 (YAML payload 格式)',
+    svc_direct_label:'作为直连规则（不创建独立选择组）',
+    btn_preview_rules:'预览规则',
+    modal_dns_add:'添加 DNS 配置',modal_dns_edit:'编辑 DNS 配置',dns_name_ph:'如：海外DNS',dns_label:'DNS 配置 (YAML)',
+    modal_hosts_add:'添加 Hosts 配置',modal_hosts_edit:'编辑 Hosts 配置',hosts_name_ph:'如：自定义 Hosts',hosts_label:'Hosts 配置 (YAML)',
+    modal_account:'账号设置',pwd_new_user:'新用户名（留空不修改）',pwd_old:'当前密码（必填）',pwd_new:'新密码（留空不修改）',btn_confirm_change:'确认修改',
+    modal_sub_edit:'编辑订阅源',sub_exclude_label:'排除关键字（逗号分隔，节点名包含关键字将被过滤）',sub_exclude_ph:'剩余流量,过期时间',
+    sub_content_label:'订阅原文（可选，粘贴后将直接导入节点）',sub_content_ph:'粘贴 YAML 或 Base64 格式的订阅内容...',
+    modal_node_add:'添加节点',modal_node_edit:'编辑节点',node_warn_sub:'⚠ 此节点来自订阅源，订阅自动更新时将覆盖当前修改。',
+    node_name_ph:'节点名称',node_server_ph:'example.com',node_raw_label:'原始配置 (JSON)',
+    modal_data:'数据管理',btn_export:'导出配置',import_drop:'点击选择或拖放 JSON 文件导入配置',import_preview:'导入预览',
+    import_subs:'订阅源:',import_nodes:'节点:',import_services:'服务规则:',import_profiles:'订阅分发:',import_dns:'DNS预设:',import_hosts:'Hosts预设:',
+    import_warn:'导入将覆盖现有配置（账号信息不会覆盖），是否继续？',btn_import_confirm:'确认导入',btn_close:'关闭',
+    notify_added:'已添加',notify_updated:'已更新',notify_deleted:'已删除',
+    notify_sub_added:'订阅已添加',notify_profile_created:'订阅分发已创建',notify_alias_updated:'别名已更新',notify_name_updated:'名称已更新',
+    notify_apply_alias:'已应用，更新了 {n} 个节点',notify_fetch_ok:'拉取成功，{n} 个节点',notify_fetching:'正在拉取...',notify_fetching_rules:'正在拉取规则...',
+    notify_fetch_rules_ok:'拉取成功，{n} 条规则',notify_presets_saved:'预设已保存',notify_link_copied:'链接已复制',
+    notify_format_err:'文件格式错误',notify_exported:'配置已导出',notify_imported:'配置已导入',notify_pwd_updated:'密码已更新，请重新登录',notify_account_updated:'账号设置已更新',
+    notify_publish_ok:'发布成功',notify_publish_failed:'发布失败',notify_gen_failed:'生成失败',notify_rules_reset:'规则已重置',
+    notify_rules_synced:'规则已同步（新增 {a}，删除 {d}）',
+    notify_node_added:'节点已添加',notify_node_updated:'节点已更新',notify_import_unsupported:'本地模式暂不支持原文导入，请使用订阅链接拉取',
+    confirm_delete:'确定删除？',confirm_delete_node:'确定删除该节点？',confirm_delete_svc:'确定删除该服务规则？',
+    no_rules:'暂无规则内容',
+  },
+  'en-US':{
+    brand:'SubForge',
+    tab_subs:'Subscriptions',tab_nodes:'Nodes',tab_services:'Service Rules',tab_profiles:'Distribution',
+    btn_account:'Account',btn_local_mode:'Local',btn_data:'Data',btn_logout:'Logout',btn_switch_login:'Login Mode',
+    badge_local_mode:'Local Mode',
+    login_intro:'Sign in to manage subscriptions and rules',login_user:'Username',login_pwd:'Password',login_btn:'Sign in',login_switch_local:'Switch to Local Mode',login_failed:'Login failed',login_neterr:'Network error',
+    stat_subs:'Subscriptions',stat_nodes:'Nodes',stat_services:'Service Rules',stat_total_rules:'Rules',
+    subs_add:'Add Subscription',subs_name:'Name',subs_name_ph:'e.g. My Provider',subs_url:'Subscription URL',subs_url_ph:'https://...',btn_add:'Add',
+    subs_list:'Subscription List',
+    col_sort:'Order',col_name:'Name',col_url:'URL',col_nodes:'Nodes',col_traffic:'Traffic',col_expiry:'Expiry',col_updated:'Updated',col_auto:'Auto',col_interval:'Interval',col_append_name:'Append Name',col_append_traffic:'Append Traffic',col_actions:'Actions',col_enabled:'Enabled',col_icon:'Icon',col_type:'Type',col_default_proxy:'Default',col_rule_count:'Rules',col_alias:'Alias',col_proto:'Protocol',col_server:'Server',col_port:'Port',col_direct_rule:'Direct',
+    val_local:'(local)',val_local_tag:'Local',
+    btn_edit:'Edit',btn_fetch:'Fetch',btn_delete:'Delete',btn_refresh:'Refresh',
+    empty_subs:'No subscriptions yet, please add one first',
+    nodes_title:'Nodes',nodes_enabled_suffix:'enabled',btn_add_node:'+ Add Node',nodes_search_ph:'Search node name...',nodes_filter_all:'All Subscriptions',
+    alias_ph:'Custom alias',
+    empty_nodes_match:'No matching nodes',empty_nodes:'No nodes yet, please add and fetch a subscription first',
+    alias_presets:'Alias Presets',btn_collapse:'Collapse',btn_expand:'Expand',alias_presets_hint:'One rule per line, format: keyword = alias. Nodes whose name contains the keyword get the alias automatically (only when alias is empty).',
+    btn_save:'Save',btn_apply:'Apply Presets',
+    services_title:'Service Rules',btn_add_service:'+ Add Rule',
+    type_local:'Local',type_remote:'Remote',
+    proxy_auto:'Auto',proxy_direct:'Direct (DIRECT)',proxy_reject:'Reject (REJECT)',proxy_select:'Select Node',
+    empty_services:'No service rules',
+    dns_title:'DNS',btn_add_dns:'+ Add DNS',type_default:'Default',type_custom:'Custom',
+    hosts_title:'Hosts',btn_add_hosts:'+ Add Hosts',empty_hosts:'No Hosts presets yet',
+    profile_create:'Create Distribution',profile_name_ph:'e.g. Phone, Router',btn_create:'Create',
+    badge_enabled:'Enabled',badge_disabled:'Disabled',badge_expired:'Expired',
+    btn_rename:'Rename',btn_confirm:'Confirm',btn_cancel:'Cancel',btn_copy:'Copy',btn_download:'Download',btn_publish:'Publish',btn_publish_update:'Republish',
+    profile_options:'Options',profile_expires:'Expires:',profile_geoip:'GEOIP CN Direct:',profile_catchall:'Catch-all:',profile_dns:'DNS Preset:',profile_hosts:'Hosts Preset:',profile_default:'Default',
+    profile_nodes:'Node Selection',btn_select_all:'Select All',btn_select_none:'Clear',btn_select_cancel:'Cancel',
+    profile_services:'Service Rules',btn_sync_rules:'Sync Rules',btn_reset_rules:'Reset Rules',
+    inherit:'Inherit',
+    btn_preview_close:'Close Preview',btn_preview:'Preview Config',
+    empty_profiles:'No distribution profiles yet, please create one',
+    empty_profile_nodes:'No nodes',
+    modal_svc_add:'Add Service Rule',modal_svc_edit:'Edit Service Rule',
+    svc_icon_ph:'🔍',svc_default:'Default Proxy',svc_rule_type:'Rule Type',
+    svc_url_label:'Rule URL (YAML, one URL per line)',svc_url_ph:'https://cdn.jsdelivr.net/...\nhttps://cdn.jsdelivr.net/... (multiple URLs separated by newline)',
+    svc_content_label:'Rule Content (YAML payload format)',
+    svc_direct_label:'Use as direct rule (do not create a separate proxy group)',
+    btn_preview_rules:'Preview Rules',
+    modal_dns_add:'Add DNS Preset',modal_dns_edit:'Edit DNS Preset',dns_name_ph:'e.g. Overseas DNS',dns_label:'DNS Config (YAML)',
+    modal_hosts_add:'Add Hosts Preset',modal_hosts_edit:'Edit Hosts Preset',hosts_name_ph:'e.g. Custom Hosts',hosts_label:'Hosts Config (YAML)',
+    modal_account:'Account Settings',pwd_new_user:'New username (leave blank to keep)',pwd_old:'Current password (required)',pwd_new:'New password (leave blank to keep)',btn_confirm_change:'Confirm',
+    modal_sub_edit:'Edit Subscription',sub_exclude_label:'Exclude keywords (comma-separated, nodes containing them will be filtered)',sub_exclude_ph:'remaining traffic,expiry',
+    sub_content_label:'Raw subscription (optional, paste to import nodes directly)',sub_content_ph:'Paste YAML or Base64 subscription content...',
+    modal_node_add:'Add Node',modal_node_edit:'Edit Node',node_warn_sub:'⚠ This node comes from a subscription. It will be overwritten on next auto-refresh.',
+    node_name_ph:'Node name',node_server_ph:'example.com',node_raw_label:'Raw Config (JSON)',
+    modal_data:'Data Management',btn_export:'Export',import_drop:'Click or drop a JSON file to import',import_preview:'Import Preview',
+    import_subs:'Subscriptions:',import_nodes:'Nodes:',import_services:'Service Rules:',import_profiles:'Profiles:',import_dns:'DNS Presets:',import_hosts:'Hosts Presets:',
+    import_warn:'Import will overwrite existing configuration (account info excluded). Continue?',btn_import_confirm:'Confirm Import',btn_close:'Close',
+    notify_added:'Added',notify_updated:'Updated',notify_deleted:'Deleted',
+    notify_sub_added:'Subscription added',notify_profile_created:'Distribution created',notify_alias_updated:'Alias updated',notify_name_updated:'Name updated',
+    notify_apply_alias:'Applied, updated {n} nodes',notify_fetch_ok:'Fetched {n} nodes',notify_fetching:'Fetching...',notify_fetching_rules:'Fetching rules...',
+    notify_fetch_rules_ok:'Fetched {n} rules',notify_presets_saved:'Presets saved',notify_link_copied:'Link copied',
+    notify_format_err:'Invalid file format',notify_exported:'Exported',notify_imported:'Imported',notify_pwd_updated:'Password updated, please sign in again',notify_account_updated:'Account updated',
+    notify_publish_ok:'Published',notify_publish_failed:'Publish failed',notify_gen_failed:'Generation failed',notify_rules_reset:'Rules reset',
+    notify_rules_synced:'Rules synced ({a} added, {d} removed)',
+    notify_node_added:'Node added',notify_node_updated:'Node updated',notify_import_unsupported:'Local mode does not support raw import; please use a subscription URL',
+    confirm_delete:'Confirm delete?',confirm_delete_node:'Delete this node?',confirm_delete_svc:'Delete this service rule?',
+    no_rules:'No rule content',
+  }
+}
 createApp({
   setup(){
+    const currentLang = ref(localStorage.getItem('sf_lang') || (navigator.language && navigator.language.toLowerCase().startsWith('zh') ? 'zh-CN' : 'en-US'))
+    function t(key,vars){
+      const dict = I18N_MESSAGES[currentLang.value] || I18N_MESSAGES['zh-CN']
+      let s = dict[key] !== undefined ? dict[key] : (I18N_MESSAGES['zh-CN'][key] !== undefined ? I18N_MESSAGES['zh-CN'][key] : key)
+      if(vars){ for(const k in vars){ s = s.replace(new RegExp('\\{'+k+'\\}','g'), vars[k]) } }
+      return s
+    }
+    function toggleLang(){
+      currentLang.value = currentLang.value === 'zh-CN' ? 'en-US' : 'zh-CN'
+      localStorage.setItem('sf_lang', currentLang.value)
+      document.documentElement.lang = currentLang.value
+    }
+    document.documentElement.lang = currentLang.value
+    const langLabel = computed(()=> currentLang.value === 'zh-CN' ? 'EN' : '中')
+
     const serverMode = ref({login_enabled:true,local_enabled:false})
     const activeMode = ref('login')
     const modeLoaded = ref(false)
@@ -614,6 +842,7 @@ createApp({
     const nodes = ref([])
     const services = ref([])
     const dnsPresets = ref([])
+    const hostsPresets = ref([])
     const profiles = ref([])
     const nodeFilter = ref('')
     const nodeSubFilter = ref('')
@@ -623,12 +852,15 @@ createApp({
 
     const svcModal = ref(false)
     const editingSvcId = ref(null)
-    const svcForm = ref({name:'',icon:'🌐',rule_url:'',rule_type:'remote',default_proxy:'自动选择',cached_rules:''})
+    const svcForm = ref({name:'',icon:'🌐',rule_url:'',rule_type:'remote',default_proxy:'自动选择',cached_rules:'',direct_rule:false})
     const svcRulePreview = ref('')
 
     const dnsModal = ref(false)
     const editingDnsId = ref(null)
     const dnsForm = ref({name:'',config:''})
+    const hostsModal = ref(false)
+    const editingHostsId = ref(null)
+    const hostsForm = ref({name:'',config:''})
 
     const pwdModal = ref(false)
     const pwdForm = ref({old_password:'',new_password:'',new_username:''})
@@ -707,7 +939,7 @@ createApp({
     const LS_KEY='sf_data'
     function getLD(){const r=localStorage.getItem(LS_KEY);return r?JSON.parse(r):null}
     function setLD(d){localStorage.setItem(LS_KEY,JSON.stringify(d))}
-    function emptyLD(){return{_nextId:1,subscriptions:[],nodes:[],services:[],profiles:[],profile_nodes:[],profile_services:[],dns_presets:[],alias_presets:'',settings:{}}}
+    function emptyLD(){return{_nextId:1,subscriptions:[],nodes:[],services:[],profiles:[],profile_nodes:[],profile_services:[],dns_presets:[],hosts_presets:[],alias_presets:'',settings:{}}}
     function nid(d){return d._nextId++}
 
     async function initLocalStore(){
@@ -718,8 +950,14 @@ createApp({
         const seed=await fetch('/api/proxy/seed').then(r=>r.json())
         if(seed.service_groups) for(const sg of seed.service_groups){sg.id=nid(d);sg.rule_count=0;d.services.push(sg)}
         if(seed.dns_presets) for(const dp of seed.dns_presets){dp.id=nid(d);d.dns_presets.push(dp)}
+        if(seed.hosts_presets) for(const hp of seed.hosts_presets){hp.id=nid(d);d.hosts_presets.push(hp)}
       }catch(e){}
       setLD(d)
+    }
+    function ensureLDFields(d){
+      if(!d) return d
+      if(!d.hosts_presets) d.hosts_presets=[]
+      return d
     }
 
     function localApi(path,opts={}){
@@ -728,7 +966,7 @@ createApp({
       const pidMatch=path.match(/^\/(\w[\w-]*)\/(\d+)(.*)/)
       const id=pidMatch?+pidMatch[2]:0
       const rest=pidMatch?pidMatch[3]:''
-      const d=getLD()
+      const d=ensureLDFields(getLD())
       if(!d) return null
 
       // ── Subscriptions ──
@@ -824,7 +1062,7 @@ createApp({
 
       // ── Services ──
       if(path==='/services'&&method==='GET'){
-        return d.services.map(s=>({id:s.id,name:s.name,icon:s.icon,rule_type:s.rule_type,rule_url:s.rule_url,default_proxy:s.default_proxy,sort_order:s.sort_order,rule_count:s.rule_count||0,enabled:s.enabled,auto_refresh:s.auto_refresh,interval_sec:s.interval_sec,last_fetched:s.last_fetched,builtin:s.builtin}))
+        return d.services.map(s=>({id:s.id,name:s.name,icon:s.icon,rule_type:s.rule_type,rule_url:s.rule_url,default_proxy:s.default_proxy,direct_rule:!!s.direct_rule,sort_order:s.sort_order,rule_count:s.rule_count||0,enabled:s.enabled,auto_refresh:s.auto_refresh,interval_sec:s.interval_sec,last_fetched:s.last_fetched,builtin:s.builtin}))
       }
       if(path==='/services'&&method==='POST'){
         const g={...body,id:nid(d),sort_order:d.services.length+1,rule_count:0,enabled:true,created_at:new Date().toISOString()}
@@ -849,6 +1087,7 @@ createApp({
           if(body.name)g.name=body.name;if(body.icon)g.icon=body.icon
           if(body.rule_type)g.rule_type=body.rule_type;if(body.rule_url)g.rule_url=body.rule_url
           if(body.default_proxy)g.default_proxy=body.default_proxy
+          if(body.direct_rule!==undefined)g.direct_rule=body.direct_rule
           if(body.auto_refresh!==undefined)g.auto_refresh=body.auto_refresh
           if(body.enabled!==undefined)g.enabled=body.enabled
           if(body.interval_sec>0)g.interval_sec=body.interval_sec
@@ -882,6 +1121,18 @@ createApp({
         d.dns_presets=d.dns_presets.filter(x=>x.id!==id);setLD(d);return{ok:true}
       }
 
+      // ── Hosts Presets ──
+      if(path==='/hosts-presets'&&method==='GET') return d.hosts_presets
+      if(path==='/hosts-presets'&&method==='POST'){const p={...body,id:nid(d),created_at:new Date().toISOString()};d.hosts_presets.push(p);setLD(d);return p}
+      if(pidMatch&&pidMatch[1]==='hosts-presets'&&rest===''&&method==='PATCH'){
+        const p=d.hosts_presets.find(x=>x.id===id)
+        if(p){if(body.name)p.name=body.name;if(body.config)p.config=body.config;setLD(d)}
+        return p
+      }
+      if(pidMatch&&pidMatch[1]==='hosts-presets'&&rest===''&&method==='DELETE'){
+        d.hosts_presets=d.hosts_presets.filter(x=>x.id!==id);setLD(d);return{ok:true}
+      }
+
       // ── Profiles ──
       if(path==='/profiles'&&method==='GET') return d.profiles
       if(path==='/profiles'&&method==='POST'){
@@ -905,6 +1156,7 @@ createApp({
           if(body.catch_all!==undefined)p.catch_all=body.catch_all
           if(body.geoip_cn!==undefined)p.geoip_cn=body.geoip_cn
           if(body.dns_preset_id!==undefined)p.dns_preset_id=body.dns_preset_id
+          if(body.hosts_preset_id!==undefined)p.hosts_preset_id=body.hosts_preset_id
           setLD(d)
         }
         return p
@@ -961,6 +1213,25 @@ createApp({
           if(ps){ps.sort_order=s.sort_order;ps.enabled=s.enabled}
         }
         setLD(d);return{ok:true}
+      }
+      const psSyncMatch=path.match(/^\/profiles\/(\d+)\/services\/sync$/)
+      if(psSyncMatch&&method==='POST'){
+        const pid=+psSyncMatch[1]
+        const existing=d.profile_services.filter(x=>x.profile_id===pid)
+        const have=new Set(existing.map(x=>x.service_group_id))
+        const want=new Set(d.services.map(s=>s.id))
+        let added=0,removed=0
+        for(const s of d.services){
+          if(!have.has(s.id)){
+            d.profile_services.push({id:nid(d),profile_id:pid,service_group_id:s.id,enabled:s.enabled,sort_order:s.sort_order})
+            added++
+          }
+        }
+        const before=d.profile_services.length
+        d.profile_services=d.profile_services.filter(x=>x.profile_id!==pid||want.has(x.service_group_id))
+        removed=before-d.profile_services.length
+        setLD(d)
+        return{added,removed}
       }
 
       // ── Account (stub for local mode) ──
@@ -1035,7 +1306,7 @@ createApp({
     async function localImportSub(d,subId,body){
       if(!body.content) return null
       // Content parsing requires server-side logic; not supported in pure local mode
-      notify('本地模式暂不支持原文导入，请使用订阅链接拉取','error')
+      notify(t('notify_import_unsupported'),'error')
       return null
     }
 
@@ -1073,12 +1344,14 @@ createApp({
       let enabledNodes=pnList.length>0?d.nodes.filter(n=>pnList.some(pn=>pn.node_id===n.id)):d.nodes.filter(n=>n.enabled)
       let dnsConfig=''
       if(p.dns_preset_id){const dp=d.dns_presets.find(x=>x.id===p.dns_preset_id);if(dp)dnsConfig=dp.config}
+      let hostsConfig=''
+      if(p.hosts_preset_id){const hp=d.hosts_presets.find(x=>x.id===p.hosts_preset_id);if(hp)hostsConfig=hp.config}
       try{
         const r=await fetch('/api/proxy/generate-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
           nodes:enabledNodes.map(n=>({...n,raw_config:n.raw_config})),
           subscriptions:d.subscriptions,
           service_groups:groups.map(g=>({...g,cached_rules:g.cached_rules})),
-          catch_all:p.catch_all,geoip_cn:p.geoip_cn,dns_config:dnsConfig
+          catch_all:p.catch_all,geoip_cn:p.geoip_cn,dns_config:dnsConfig,hosts_config:hostsConfig
         })})
         const data=await r.json()
         return{config:data.config||data.error||'# Error'}
@@ -1115,8 +1388,8 @@ createApp({
         const r=await fetch('/api/login',post(loginForm.value))
         const d=await r.json()
         if(r.ok){currentUsername.value=d.username||loginForm.value.username;loggedIn.value=true;load()}
-        else loginError.value=d.error||'登录失败'
-      }catch(e){loginError.value='网络错误'}
+        else loginError.value=d.error||t('login_failed')
+      }catch(e){loginError.value=t('login_neterr')}
     }
     async function logout(){await api('/logout',{method:'POST'});loggedIn.value=false;loginForm.value={username:'',password:''}}
 
@@ -1141,23 +1414,24 @@ createApp({
     }
     async function loadServices(){const r=await api('/services');if(r) services.value=r}
     async function loadDnsPresets(){const r=await api('/dns-presets');if(r) dnsPresets.value=r}
+    async function loadHostsPresets(){const r=await api('/hosts-presets');if(r) hostsPresets.value=r}
 
     // ── Subscription ──
     async function addSub(){
       const hadUrl=newSub.value.url
       const r=await api('/subscriptions',post(newSub.value))
       if(r?.id){
-        notify('订阅已添加');newSub.value={name:'',url:''}
+        notify(t('notify_sub_added'));newSub.value={name:'',url:''}
         if(hadUrl){await fetchSub(r.id)}
         else{load()}
       }
     }
     async function fetchSub(id){
-      notify('正在拉取...')
+      notify(t('notify_fetching'))
       const r=await api(`/subscriptions/${id}/fetch`,{method:'POST'})
-      if(r?.ok){notify(`拉取成功，${r.count} 个节点`);load()}
+      if(r?.ok){notify(t('notify_fetch_ok',{n:r.count}));load()}
     }
-    async function delSub(id){if(!confirm('确定删除？'))return;await api(`/subscriptions/${id}`,{method:'DELETE'});notify('已删除');load()}
+    async function delSub(id){if(!confirm(t('confirm_delete')))return;await api(`/subscriptions/${id}`,{method:'DELETE'});notify(t('notify_deleted'));load()}
     async function patchSub(s,fields){
       await api(`/subscriptions/${s.id}`,json({...s,...fields}))
       load()
@@ -1185,7 +1459,7 @@ createApp({
       await api(`/subscriptions/${f.id}`,json({name:f.name,url:f.url,exclude_keywords:f.exclude_keywords}))
       if(f.content.trim()){
         const r=await api(`/subscriptions/${f.id}/import`,post({content:f.content}))
-        if(r?.ok) notify(`导入成功，${r.count} 个节点`)
+        if(r?.ok) notify(t('notify_fetch_ok',{n:r.count}))
       }
       subEditModal.value=false;load()
     }
@@ -1196,7 +1470,7 @@ createApp({
       if(alias===n.alias) return
       await api(`/nodes/${n.id}/alias`,json({alias}))
       n.alias=alias
-      notify('别名已更新')
+      notify(t('notify_alias_updated'))
     }
 
     function openAddNode(){
@@ -1213,33 +1487,33 @@ createApp({
       const f=nodeEditForm.value
       if(f.id){
         await api(`/nodes/${f.id}/edit`,json({raw_config:f.raw_config}))
-        notify('节点已更新')
+        notify(t('notify_node_updated'))
       }else{
         let rawCfg=f.raw_config.trim()
         if(!rawCfg){rawCfg=JSON.stringify({name:f.name,type:f.type,server:f.server,port:f.port})}
         const r=await api('/nodes',post({name:f.name,type:f.type,server:f.server,port:f.port,raw_config:rawCfg}))
-        if(r?.ok) notify('节点已添加')
+        if(r?.ok) notify(t('notify_node_added'))
       }
       nodeEditModal.value=false;load()
     }
-    async function delNode(id){if(!confirm('确定删除该节点？'))return;await api(`/nodes/${id}`,{method:'DELETE'});notify('已删除');load()}
+    async function delNode(id){if(!confirm(t('confirm_delete_node')))return;await api(`/nodes/${id}`,{method:'DELETE'});notify(t('notify_deleted'));load()}
 
     async function loadAliasPresets(){const r=await api('/settings/alias-presets');if(r) aliasPresetsText.value=r.presets||''}
     async function saveAliasPresets(){
       await api('/settings/alias-presets',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({presets:aliasPresetsText.value})})
-      notify('预设已保存')
+      notify(t('notify_presets_saved'))
     }
     async function applyAliasPresets(){
       const r=await api('/nodes/apply-alias-presets',{method:'POST'})
-      if(r) notify(`已应用，更新了 ${r.updated} 个节点`)
+      if(r) notify(t('notify_apply_alias',{n:r.updated}))
       load()
     }
 
     // ── Service ──
-    function openAddSvc(){editingSvcId.value=null;svcForm.value={name:'',icon:'🌐',rule_url:'',rule_type:'remote',default_proxy:'自动选择',cached_rules:''};svcRulePreview.value='';svcModal.value=true}
+    function openAddSvc(){editingSvcId.value=null;svcForm.value={name:'',icon:'🌐',rule_url:'',rule_type:'remote',default_proxy:'自动选择',cached_rules:'',direct_rule:false};svcRulePreview.value='';svcModal.value=true}
     async function editSvc(s){
       editingSvcId.value=s.id
-      svcForm.value={name:s.name,icon:s.icon,rule_url:s.rule_url||'',rule_type:s.rule_type||'remote',default_proxy:s.default_proxy,cached_rules:''}
+      svcForm.value={name:s.name,icon:s.icon,rule_url:s.rule_url||'',rule_type:s.rule_type||'remote',default_proxy:s.default_proxy,cached_rules:'',direct_rule:!!s.direct_rule}
       svcRulePreview.value=''
       if(s.rule_type==='local'){
         const r=await api(`/services/${s.id}/rules`)
@@ -1251,18 +1525,18 @@ createApp({
       const body={...svcForm.value}
       if(editingSvcId.value){
         await api(`/services/${editingSvcId.value}`,json(body))
-        notify('已更新')
+        notify(t('notify_updated'))
       }else{
         await api('/services',post(body))
-        notify('已添加')
+        notify(t('notify_added'))
       }
       svcModal.value=false;loadServices()
     }
-    async function delSvc(id){if(!confirm('确定删除该服务规则？'))return;await api(`/services/${id}`,{method:'DELETE'});notify('已删除');loadServices()}
+    async function delSvc(id){if(!confirm(t('confirm_delete_svc')))return;await api(`/services/${id}`,{method:'DELETE'});notify(t('notify_deleted'));loadServices()}
     async function fetchSvcRules(id){
-      notify('正在拉取规则...')
+      notify(t('notify_fetching_rules'))
       const r=await api(`/services/${id}/fetch`,{method:'POST'})
-      if(r?.ok) notify(`拉取成功，${r.rule_count} 条规则`)
+      if(r?.ok) notify(t('notify_fetch_rules_ok',{n:r.rule_count}))
       loadServices()
     }
     async function toggleSvcEnabled(s){
@@ -1271,6 +1545,10 @@ createApp({
     }
     async function toggleSvcAutoRefresh(s){
       await api(`/services/${s.id}`,json({auto_refresh:!s.auto_refresh}))
+      loadServices()
+    }
+    async function toggleSvcDirectRule(s){
+      await api(`/services/${s.id}`,json({direct_rule:!s.direct_rule}))
       loadServices()
     }
     async function moveGlobalSvc(index,dir){
@@ -1285,7 +1563,7 @@ createApp({
     async function previewSvcRules(){
       if(!editingSvcId.value) return
       const r=await api(`/services/${editingSvcId.value}/rules`)
-      if(r) svcRulePreview.value=r.cached_rules||'暂无规则内容'
+      if(r) svcRulePreview.value=r.cached_rules||t('no_rules')
     }
 
     // ── DNS Preset ──
@@ -1294,21 +1572,34 @@ createApp({
     async function saveDns(){
       if(editingDnsId.value){
         await api(`/dns-presets/${editingDnsId.value}`,json(dnsForm.value))
-        notify('已更新')
+        notify(t('notify_updated'))
       }else{
         await api('/dns-presets',post(dnsForm.value))
-        notify('已添加')
+        notify(t('notify_added'))
       }
       dnsModal.value=false;loadDnsPresets()
     }
-    async function delDns(id){if(!confirm('确定删除？'))return;await api(`/dns-presets/${id}`,{method:'DELETE'});notify('已删除');loadDnsPresets()}
+    async function delDns(id){if(!confirm(t('confirm_delete')))return;await api(`/dns-presets/${id}`,{method:'DELETE'});notify(t('notify_deleted'));loadDnsPresets()}
+    function openAddHosts(){editingHostsId.value=null;hostsForm.value={name:'',config:''};hostsModal.value=true}
+    function editHosts(h){editingHostsId.value=h.id;hostsForm.value={name:h.name,config:h.config};hostsModal.value=true}
+    async function saveHosts(){
+      if(editingHostsId.value){
+        await api(`/hosts-presets/${editingHostsId.value}`,json(hostsForm.value))
+        notify(t('notify_updated'))
+      }else{
+        await api('/hosts-presets',post(hostsForm.value))
+        notify(t('notify_added'))
+      }
+      hostsModal.value=false;loadHostsPresets()
+    }
+    async function delHosts(id){if(!confirm(t('confirm_delete')))return;await api(`/hosts-presets/${id}`,{method:'DELETE'});notify(t('notify_deleted'));loadHostsPresets()}
 
     // ── Profile ──
     async function addProfile(){
       const r=await api('/profiles',post(newProfile.value))
-      if(r?.id){notify('订阅分发已创建');newProfile.value={name:''};load()}
+      if(r?.id){notify(t('notify_profile_created'));newProfile.value={name:''};load()}
     }
-    async function delProfile(id){if(!confirm('确定删除？'))return;await api(`/profiles/${id}`,{method:'DELETE'});notify('已删除');expandedProfile.value=null;load()}
+    async function delProfile(id){if(!confirm(t('confirm_delete')))return;await api(`/profiles/${id}`,{method:'DELETE'});notify(t('notify_deleted'));expandedProfile.value=null;load()}
     async function patchProfile(id,fields){
       await api(`/profiles/${id}`,json(fields))
       const r=await api('/profiles')
@@ -1326,7 +1617,7 @@ createApp({
       const old=profiles.value.find(x=>x.id===id)
       if(old&&old.name===newName) return
       await patchProfile(id,{name:newName})
-      notify('名称已更新')
+      notify(t('notify_name_updated'))
     }
     function cancelRenameProfile(){
       renamingProfileId.value=null
@@ -1379,7 +1670,17 @@ createApp({
       await api(`/profiles/${expandedProfile.value}/services/reset-order`,{method:'POST'})
       const s=await api(`/profiles/${expandedProfile.value}/services`)
       if(s) profileSvcData.value=s
-      notify('规则已重置')
+      notify(t('notify_rules_reset'))
+    }
+    async function syncProfileSvcRules(profileId){
+      const target=profileId||expandedProfile.value
+      if(!target) return
+      const r=await api(`/profiles/${target}/services/sync`,{method:'POST'})
+      if(expandedProfile.value===target){
+        const s=await api(`/profiles/${target}/services`)
+        if(s) profileSvcData.value=s
+      }
+      notify(t('notify_rules_synced',{a:r?.added||0,d:r?.removed||0}))
     }
     async function moveProfileSvc(index,dir){
       const list=[...profileSvcData.value]
@@ -1397,7 +1698,7 @@ createApp({
       profilePreview.value=id
     }
 
-    function copyUrl(token){navigator.clipboard?.writeText(subUrl(token));notify('链接已复制')}
+    function copyUrl(token){navigator.clipboard?.writeText(subUrl(token));notify(t('notify_link_copied'))}
     function downloadConfig(token){const a=document.createElement('a');a.href=`/sub?token=${token}`;a.download='config.yaml';a.click()}
     function openAccountModal(){pwdForm.value={old_password:'',new_password:'',new_username:''};showOldPwd.value=false;showNewPwd.value=false;pwdModal.value=true}
 
@@ -1407,7 +1708,7 @@ createApp({
       let data
       if(activeMode.value==='local'){
         const ld=getLD()
-        data={version:1,exported_at:new Date().toISOString(),subscriptions:ld.subscriptions,nodes:ld.nodes,service_groups:ld.services,profiles:ld.profiles,profile_nodes:ld.profile_nodes,profile_services:ld.profile_services,dns_presets:ld.dns_presets,alias_presets:ld.alias_presets,settings:ld.settings}
+        data={version:1,exported_at:new Date().toISOString(),subscriptions:ld.subscriptions,nodes:ld.nodes,service_groups:ld.services,profiles:ld.profiles,profile_nodes:ld.profile_nodes,profile_services:ld.profile_services,dns_presets:ld.dns_presets,hosts_presets:ld.hosts_presets||[],alias_presets:ld.alias_presets,settings:ld.settings}
       }else{
         data=await api('/export')
         if(!data) return
@@ -1415,7 +1716,7 @@ createApp({
       const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'})
       const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='subforge-config.json';a.click()
       URL.revokeObjectURL(a.href)
-      notify('配置已导出')
+      notify(t('notify_exported'))
     }
     function handleImportFile(e){const f=e.target.files[0];if(f) parseImportFile(f)}
     function handleImportDrop(e){const f=e.dataTransfer.files[0];if(f) parseImportFile(f)}
@@ -1430,9 +1731,10 @@ createApp({
             nodes:(data.nodes||[]).length,
             services:(data.service_groups||[]).length,
             profiles:(data.profiles||[]).length,
-            dns_presets:(data.dns_presets||[]).length
+            dns_presets:(data.dns_presets||[]).length,
+            hosts_presets:(data.hosts_presets||[]).length
           }
-        }catch(err){notify('文件格式错误','error')}
+        }catch(err){notify(t('notify_format_err'),'error')}
       }
       reader.readAsText(file)
     }
@@ -1448,15 +1750,16 @@ createApp({
         ld.profile_nodes=data.profile_nodes||[]
         ld.profile_services=data.profile_services||[]
         ld.dns_presets=data.dns_presets||[]
+        ld.hosts_presets=data.hosts_presets||[]
         ld.alias_presets=data.alias_presets||''
         ld.settings=data.settings||{}
-        const maxId=Math.max(0,...[...ld.subscriptions,...ld.nodes,...ld.services,...ld.profiles,...ld.profile_nodes,...ld.profile_services,...ld.dns_presets].map(x=>x.id||0))
+        const maxId=Math.max(0,...[...ld.subscriptions,...ld.nodes,...ld.services,...ld.profiles,...ld.profile_nodes,...ld.profile_services,...ld.dns_presets,...ld.hosts_presets].map(x=>x.id||0))
         ld._nextId=maxId+1
         setLD(ld)
-        notify('配置已导入');importPreview.value=null;importRawData.value=null;ieModal.value=false;load()
+        notify(t('notify_imported'));importPreview.value=null;importRawData.value=null;ieModal.value=false;load()
       }else{
         const r=await api('/import',post(data))
-        if(r?.ok){notify('配置已导入');importPreview.value=null;importRawData.value=null;ieModal.value=false;load()}
+        if(r?.ok){notify(t('notify_imported'));importPreview.value=null;importRawData.value=null;ieModal.value=false;load()}
       }
     }
 
@@ -1474,23 +1777,25 @@ createApp({
       let enabledNodes=pnList.length>0?d.nodes.filter(n=>pnList.some(pn=>pn.node_id===n.id)):d.nodes.filter(n=>n.enabled)
       let dnsConfig=''
       if(p.dns_preset_id){const dp=d.dns_presets.find(x=>x.id===p.dns_preset_id);if(dp)dnsConfig=dp.config}
+      let hostsConfig=''
+      if(p.hosts_preset_id){const hp=d.hosts_presets.find(x=>x.id===p.hosts_preset_id);if(hp)hostsConfig=hp.config}
       try{
         const r=await fetch('/api/proxy/publish-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
           nodes:enabledNodes.map(n=>({...n,raw_config:n.raw_config})),
           subscriptions:d.subscriptions,
           service_groups:groups.map(g=>({...g,cached_rules:g.cached_rules})),
-          catch_all:p.catch_all,geoip_cn:p.geoip_cn,dns_config:dnsConfig,
+          catch_all:p.catch_all,geoip_cn:p.geoip_cn,dns_config:dnsConfig,hosts_config:hostsConfig,
           token:p.published_token||''
         })})
         const data=await r.json()
-        if(!r.ok){notify(data.error||'发布失败','error');return}
+        if(!r.ok){notify(data.error||t('notify_publish_failed'),'error');return}
         p.published_token=data.token
         const idx=d.profiles.findIndex(x=>x.id===p.id)
         if(idx>=0)d.profiles[idx].published_token=data.token
         setLD(d)
         const pi=profiles.value.findIndex(x=>x.id===p.id)
         if(pi>=0)profiles.value[pi].published_token=data.token
-        notify('发布成功')
+        notify(t('notify_publish_ok'))
       }catch(e){notify(e.message,'error')}
     }
 
@@ -1507,15 +1812,17 @@ createApp({
       let enabledNodes=pnList.length>0?d.nodes.filter(n=>pnList.some(pn=>pn.node_id===n.id)):d.nodes.filter(n=>n.enabled)
       let dnsConfig=''
       if(p.dns_preset_id){const dp=d.dns_presets.find(x=>x.id===p.dns_preset_id);if(dp)dnsConfig=dp.config}
+      let hostsConfig=''
+      if(p.hosts_preset_id){const hp=d.hosts_presets.find(x=>x.id===p.hosts_preset_id);if(hp)hostsConfig=hp.config}
       try{
         const r=await fetch('/api/proxy/generate-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
           nodes:enabledNodes.map(n=>({...n,raw_config:n.raw_config})),
           subscriptions:d.subscriptions,
           service_groups:groups.map(g=>({...g,cached_rules:g.cached_rules})),
-          catch_all:p.catch_all,geoip_cn:p.geoip_cn,dns_config:dnsConfig
+          catch_all:p.catch_all,geoip_cn:p.geoip_cn,dns_config:dnsConfig,hosts_config:hostsConfig
         })})
         const data=await r.json()
-        if(!r.ok){notify(data.error||'生成失败','error');return}
+        if(!r.ok){notify(data.error||t('notify_gen_failed'),'error');return}
         const blob=new Blob([data.config],{type:'text/yaml'})
         const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='config.yaml';a.click()
         URL.revokeObjectURL(a.href)
@@ -1528,9 +1835,9 @@ createApp({
         if(pwdForm.value.new_username) currentUsername.value=pwdForm.value.new_username
         pwdModal.value=false;pwdForm.value={old_password:'',new_password:'',new_username:''}
         if(hadNewPwd){
-          notify('密码已更新，请重新登录');loggedIn.value=false
+          notify(t('notify_pwd_updated'));loggedIn.value=false
         }else{
-          notify('账号设置已更新')
+          notify(t('notify_account_updated'))
         }
       }
     }
@@ -1550,11 +1857,13 @@ createApp({
       modeLoaded.value=true
     })
 
-    return {serverMode,activeMode,modeLoaded,
-      loggedIn,loginForm,loginError,tab,subscriptions,nodes,services,dnsPresets,profiles,
+    return {t,toggleLang,langLabel,currentLang,
+      serverMode,activeMode,modeLoaded,
+      loggedIn,loginForm,loginError,tab,subscriptions,nodes,services,dnsPresets,hostsPresets,profiles,
       nodeFilter,nodeSubFilter,newSub,newProfile,toast,
       svcModal,editingSvcId,svcForm,svcRulePreview,
       dnsModal,editingDnsId,dnsForm,
+      hostsModal,editingHostsId,hostsForm,
       pwdModal,pwdForm,currentUsername,showOldPwd,showNewPwd,
       subEditModal,subEditForm,
       nodeEditModal,nodeEditForm,showAliasPresets,aliasPresetsText,
@@ -1563,12 +1872,14 @@ createApp({
       enabledNodes,filteredNodes,totalRules,subUrl,
       groupedProfileNodes,profileEnabledNodeCount,profileEnabledNodes,profileEnabledSvcCount,
       notify,fmtTraffic,fmtBytes,formatDate,isExpired,nodeDisplayName,
-      checkAuth,login,logout,load,loadServices,loadDnsPresets,
+      checkAuth,login,logout,load,loadServices,loadDnsPresets,loadHostsPresets,
       switchToLocal,switchToLogin,
       addSub,fetchSub,delSub,patchSub,moveSubscription,openEditSub,saveEditSub,
       toggleNode,saveAlias,openAddNode,openEditNode,saveNodeEdit,delNode,loadAliasPresets,saveAliasPresets,applyAliasPresets,
-      openAddSvc,editSvc,saveSvc,delSvc,fetchSvcRules,toggleSvcEnabled,toggleSvcAutoRefresh,moveGlobalSvc,previewSvcRules,
+      openAddSvc,editSvc,saveSvc,delSvc,fetchSvcRules,toggleSvcEnabled,toggleSvcAutoRefresh,toggleSvcDirectRule,moveGlobalSvc,previewSvcRules,
       openAddDns,editDns,saveDns,delDns,
+      openAddHosts,editHosts,saveHosts,delHosts,
+      syncProfileSvcRules,
       renamingProfileId,renamingProfileName,
       addProfile,delProfile,patchProfile,renameProfile,confirmRenameProfile,cancelRenameProfile,moveProfile,expandProfile,
       toggleProfileNode,batchProfileNodes,batchProfileNodeGroup,
