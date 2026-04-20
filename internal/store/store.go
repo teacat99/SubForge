@@ -29,6 +29,7 @@ func New(dbPath string) (*Store, error) {
 		&model.ProfileNode{},
 		&model.UserProfile{},
 		&model.DnsPreset{},
+		&model.HostsPreset{},
 		&model.AdminUser{},
 		&model.PublishedProfile{},
 	); err != nil {
@@ -374,6 +375,63 @@ func (s *Store) ResetProfileServiceOrder(profileID uint) error {
 	})
 }
 
+// SyncProfileServices reconciles a profile's ProfileService rows against the
+// current global ServiceGroup set: it adds missing rows (inheriting global
+// enabled/sort_order, default_proxy left empty for inheritance), and removes
+// rows whose ServiceGroup no longer exists. Existing rows are kept untouched
+// so user toggles / overrides / sort orders are preserved.
+// Returns (added, removed, error).
+func (s *Store) SyncProfileServices(profileID uint) (int, int, error) {
+	added, removed := 0, 0
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var groups []model.ServiceGroup
+		if err := tx.Order("sort_order ASC, id ASC").Find(&groups).Error; err != nil {
+			return err
+		}
+		groupSet := make(map[uint]model.ServiceGroup, len(groups))
+		for _, g := range groups {
+			groupSet[g.ID] = g
+		}
+
+		var existing []model.ProfileService
+		if err := tx.Where("profile_id = ?", profileID).Find(&existing).Error; err != nil {
+			return err
+		}
+		existingSet := make(map[uint]struct{}, len(existing))
+		for _, ps := range existing {
+			existingSet[ps.ServiceGroupID] = struct{}{}
+		}
+
+		for _, g := range groups {
+			if _, ok := existingSet[g.ID]; ok {
+				continue
+			}
+			ps := model.ProfileService{
+				ProfileID:      profileID,
+				ServiceGroupID: g.ID,
+				Enabled:        g.Enabled,
+				SortOrder:      g.SortOrder,
+			}
+			if err := tx.Create(&ps).Error; err != nil {
+				return err
+			}
+			added++
+		}
+
+		for _, ps := range existing {
+			if _, ok := groupSet[ps.ServiceGroupID]; ok {
+				continue
+			}
+			if err := tx.Delete(&model.ProfileService{}, ps.ID).Error; err != nil {
+				return err
+			}
+			removed++
+		}
+		return nil
+	})
+	return added, removed, err
+}
+
 func (s *Store) CopyProfileServices(fromProfileID, toProfileID uint) error {
 	var src []model.ProfileService
 	s.db.Where("profile_id = ?", fromProfileID).Find(&src)
@@ -518,6 +576,44 @@ func (s *Store) DeleteDnsPreset(id uint) error {
 	return s.db.Delete(&model.DnsPreset{}, id).Error
 }
 
+// ── HostsPreset ──
+
+func (s *Store) SeedHostsPresets(presets []model.HostsPreset) error {
+	for i := range presets {
+		var existing model.HostsPreset
+		if err := s.db.Where("name = ? AND builtin = ?", presets[i].Name, true).First(&existing).Error; err == nil {
+			continue
+		}
+		s.db.Create(&presets[i])
+	}
+	return nil
+}
+
+func (s *Store) ListHostsPresets() ([]model.HostsPreset, error) {
+	var presets []model.HostsPreset
+	return presets, s.db.Order("id ASC").Find(&presets).Error
+}
+
+func (s *Store) GetHostsPreset(id uint) (*model.HostsPreset, error) {
+	var p model.HostsPreset
+	if err := s.db.First(&p, id).Error; err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (s *Store) CreateHostsPreset(p *model.HostsPreset) error {
+	return s.db.Create(p).Error
+}
+
+func (s *Store) UpdateHostsPreset(p *model.HostsPreset) error {
+	return s.db.Save(p).Error
+}
+
+func (s *Store) DeleteHostsPreset(id uint) error {
+	return s.db.Delete(&model.HostsPreset{}, id).Error
+}
+
 // ── UserProfile ──
 
 func (s *Store) CreateProfile(p *model.UserProfile) error {
@@ -626,6 +722,7 @@ func (s *Store) ImportData(
 	profileNodes []model.ProfileNode,
 	profileServices []model.ProfileService,
 	dnsPresets []model.DnsPreset,
+	hostsPresets []model.HostsPreset,
 	settings []model.Setting,
 ) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
@@ -636,6 +733,7 @@ func (s *Store) ImportData(
 		tx.Where("1=1").Delete(&model.Subscription{})
 		tx.Where("1=1").Delete(&model.ServiceGroup{})
 		tx.Where("1=1").Delete(&model.DnsPreset{})
+		tx.Where("1=1").Delete(&model.HostsPreset{})
 		tx.Where("1=1").Delete(&model.Setting{})
 
 		if len(subs) > 0 {
@@ -670,6 +768,11 @@ func (s *Store) ImportData(
 		}
 		if len(dnsPresets) > 0 {
 			if err := tx.Create(&dnsPresets).Error; err != nil {
+				return err
+			}
+		}
+		if len(hostsPresets) > 0 {
+			if err := tx.Create(&hostsPresets).Error; err != nil {
 				return err
 			}
 		}

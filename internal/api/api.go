@@ -94,6 +94,11 @@ func NewRouter(s *store.Store, loginEnabled, localEnabled bool, defaultDnsYAML s
 		api.PATCH("/dns-presets/:id", h.updateDnsPreset)
 		api.DELETE("/dns-presets/:id", h.deleteDnsPreset)
 
+		api.GET("/hosts-presets", h.listHostsPresets)
+		api.POST("/hosts-presets", h.createHostsPreset)
+		api.PATCH("/hosts-presets/:id", h.updateHostsPreset)
+		api.DELETE("/hosts-presets/:id", h.deleteHostsPreset)
+
 		api.GET("/profiles", h.listProfiles)
 		api.POST("/profiles", h.createProfile)
 		api.POST("/profiles/reorder", h.reorderProfiles)
@@ -106,6 +111,7 @@ func NewRouter(s *store.Store, loginEnabled, localEnabled bool, defaultDnsYAML s
 		api.PATCH("/profiles/:id/services/:sgid/proxy", h.updateProfileServiceProxy)
 		api.POST("/profiles/:id/services/reorder", h.reorderProfileServices)
 		api.POST("/profiles/:id/services/reset-order", h.resetProfileServiceOrder)
+		api.POST("/profiles/:id/services/sync", h.syncProfileServices)
 		api.GET("/profiles/:id/preview", h.previewProfileConfig)
 
 		api.GET("/export", h.exportAllData)
@@ -677,6 +683,7 @@ type serviceView struct {
 	RuleType     string     `json:"rule_type"`
 	RuleURL      string     `json:"rule_url"`
 	DefaultProxy string     `json:"default_proxy"`
+	DirectRule   bool       `json:"direct_rule"`
 	SortOrder    int        `json:"sort_order"`
 	RuleCount    int        `json:"rule_count"`
 	Enabled      bool       `json:"enabled"`
@@ -697,7 +704,8 @@ func (h *Handler) listServices(c *gin.Context) {
 		result[i] = serviceView{
 			ID: g.ID, Name: g.Name, Icon: g.Icon,
 			RuleType: g.RuleType, RuleURL: g.RuleURL,
-			DefaultProxy: g.DefaultProxy, SortOrder: g.SortOrder,
+			DefaultProxy: g.DefaultProxy, DirectRule: g.DirectRule,
+			SortOrder: g.SortOrder,
 			RuleCount: g.RuleCount, Enabled: g.Enabled,
 			AutoRefresh: g.AutoRefresh,
 			IntervalSec: g.IntervalSec, LastFetched: g.LastFetched,
@@ -730,6 +738,7 @@ func (h *Handler) createService(c *gin.Context) {
 		RuleURL      string `json:"rule_url"`
 		CachedRules  string `json:"cached_rules"`
 		DefaultProxy string `json:"default_proxy"`
+		DirectRule   *bool  `json:"direct_rule"`
 		Enabled      *bool  `json:"enabled"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -747,6 +756,9 @@ func (h *Handler) createService(c *gin.Context) {
 	}
 	if body.Enabled != nil {
 		g.Enabled = *body.Enabled
+	}
+	if body.DirectRule != nil {
+		g.DirectRule = *body.DirectRule
 	}
 	if g.DefaultProxy == "" {
 		g.DefaultProxy = "自动选择"
@@ -789,6 +801,7 @@ func (h *Handler) updateService(c *gin.Context) {
 		RuleURL      string `json:"rule_url"`
 		CachedRules  string `json:"cached_rules"`
 		DefaultProxy string `json:"default_proxy"`
+		DirectRule   *bool  `json:"direct_rule"`
 		AutoRefresh  *bool  `json:"auto_refresh"`
 		Enabled      *bool  `json:"enabled"`
 		IntervalSec  int    `json:"interval_sec"`
@@ -817,6 +830,9 @@ func (h *Handler) updateService(c *gin.Context) {
 	}
 	if body.Enabled != nil {
 		g.Enabled = *body.Enabled
+	}
+	if body.DirectRule != nil {
+		g.DirectRule = *body.DirectRule
 	}
 	if body.IntervalSec > 0 {
 		g.IntervalSec = body.IntervalSec
@@ -939,6 +955,67 @@ func (h *Handler) deleteDnsPreset(c *gin.Context) {
 	c.JSON(200, gin.H{"ok": true})
 }
 
+// ── Hosts Preset ──
+
+func (h *Handler) listHostsPresets(c *gin.Context) {
+	presets, err := h.store.ListHostsPresets()
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, presets)
+}
+
+func (h *Handler) createHostsPreset(c *gin.Context) {
+	var p model.HostsPreset
+	if err := c.ShouldBindJSON(&p); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.store.CreateHostsPreset(&p); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(201, p)
+}
+
+func (h *Handler) updateHostsPreset(c *gin.Context) {
+	id := parseID(c)
+	p, err := h.store.GetHostsPreset(id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "not found"})
+		return
+	}
+	var body struct {
+		Name   string `json:"name"`
+		Config string `json:"config"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	if body.Name != "" {
+		p.Name = body.Name
+	}
+	if body.Config != "" {
+		p.Config = body.Config
+	}
+	if err := h.store.UpdateHostsPreset(p); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, p)
+}
+
+func (h *Handler) deleteHostsPreset(c *gin.Context) {
+	id := parseID(c)
+	if err := h.store.DeleteHostsPreset(id); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"ok": true})
+}
+
 // ── Profile ──
 
 func (h *Handler) listProfiles(c *gin.Context) {
@@ -990,12 +1067,13 @@ func (h *Handler) updateProfile(c *gin.Context) {
 		return
 	}
 	var body struct {
-		Name        *string    `json:"name"`
-		Enabled     *bool      `json:"enabled"`
-		ExpiresAt   *time.Time `json:"expires_at"`
-		CatchAll    *bool      `json:"catch_all"`
-		GeoipCN     *bool      `json:"geoip_cn"`
-		DnsPresetID *uint      `json:"dns_preset_id"`
+		Name          *string    `json:"name"`
+		Enabled       *bool      `json:"enabled"`
+		ExpiresAt     *time.Time `json:"expires_at"`
+		CatchAll      *bool      `json:"catch_all"`
+		GeoipCN       *bool      `json:"geoip_cn"`
+		DnsPresetID   *uint      `json:"dns_preset_id"`
+		HostsPresetID *uint      `json:"hosts_preset_id"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -1018,6 +1096,9 @@ func (h *Handler) updateProfile(c *gin.Context) {
 	}
 	if body.DnsPresetID != nil {
 		p.DnsPresetID = *body.DnsPresetID
+	}
+	if body.HostsPresetID != nil {
+		p.HostsPresetID = *body.HostsPresetID
 	}
 	p.ID = id
 	if err := h.store.UpdateProfile(p); err != nil {
@@ -1153,6 +1234,7 @@ func (h *Handler) listProfileServices(c *gin.Context) {
 		Icon              string `json:"icon"`
 		DefaultProxy      string `json:"default_proxy"`
 		DefaultProxyOverride string `json:"default_proxy_override"`
+		DirectRule        bool   `json:"direct_rule"`
 		RuleCount         int    `json:"rule_count"`
 		Enabled           bool   `json:"enabled"`
 		SortOrder         int    `json:"sort_order"`
@@ -1169,6 +1251,7 @@ func (h *Handler) listProfileServices(c *gin.Context) {
 			Icon:              g.Icon,
 			DefaultProxy:      g.DefaultProxy,
 			DefaultProxyOverride: p.DefaultProxy,
+			DirectRule:        g.DirectRule,
 			RuleCount:         g.RuleCount,
 			Enabled:           p.Enabled,
 			SortOrder:         p.SortOrder,
@@ -1236,6 +1319,16 @@ func (h *Handler) resetProfileServiceOrder(c *gin.Context) {
 	c.JSON(200, gin.H{"ok": true})
 }
 
+func (h *Handler) syncProfileServices(c *gin.Context) {
+	profileID := parseID(c)
+	added, removed, err := h.store.SyncProfileServices(profileID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"ok": true, "added": added, "removed": removed})
+}
+
 // ── Config Generation ──
 
 func (h *Handler) buildGenerateOptions(profile *model.UserProfile) (*generator.Options, error) {
@@ -1298,6 +1391,13 @@ func (h *Handler) buildGenerateOptions(profile *model.UserProfile) (*generator.O
 		}
 	}
 
+	var hostsConfig string
+	if profile.HostsPresetID > 0 {
+		if preset, err := h.store.GetHostsPreset(profile.HostsPresetID); err == nil {
+			hostsConfig = preset.Config
+		}
+	}
+
 	return &generator.Options{
 		Nodes:         nodes,
 		Subscriptions: subs,
@@ -1305,6 +1405,7 @@ func (h *Handler) buildGenerateOptions(profile *model.UserProfile) (*generator.O
 		CatchAll:      profile.CatchAll,
 		GeoipCN:       profile.GeoipCN,
 		DnsConfig:     dnsConfig,
+		HostsConfig:   hostsConfig,
 	}, nil
 }
 
@@ -1396,6 +1497,7 @@ func (h *Handler) getSeedData(c *gin.Context) {
 		RuleType     string `json:"rule_type"`
 		RuleURL      string `json:"rule_url"`
 		DefaultProxy string `json:"default_proxy"`
+		DirectRule   bool   `json:"direct_rule"`
 		CachedRules  string `json:"cached_rules"`
 		SortOrder    int    `json:"sort_order"`
 		Enabled      bool   `json:"enabled"`
@@ -1408,6 +1510,7 @@ func (h *Handler) getSeedData(c *gin.Context) {
 		sg[i] = seedGroup{
 			Name: g.Name, Icon: g.Icon, RuleType: g.RuleType,
 			RuleURL: g.RuleURL, DefaultProxy: g.DefaultProxy,
+			DirectRule:  g.DirectRule,
 			CachedRules: g.CachedRules, SortOrder: g.SortOrder,
 			Enabled: g.Enabled, AutoRefresh: g.AutoRefresh,
 			IntervalSec: g.IntervalSec, Builtin: g.Builtin,
@@ -1418,6 +1521,7 @@ func (h *Handler) getSeedData(c *gin.Context) {
 		"dns_presets": []gin.H{
 			{"name": "DNS 1.1.1.1", "config": h.defaultDnsYAML, "builtin": true},
 		},
+		"hosts_presets": []gin.H{},
 	})
 }
 
@@ -1497,9 +1601,10 @@ func (h *Handler) proxyGenerateConfig(c *gin.Context) {
 			model.ServiceGroup
 			CachedRules string `json:"cached_rules"`
 		} `json:"service_groups"`
-		CatchAll  bool   `json:"catch_all"`
-		GeoipCN   bool   `json:"geoip_cn"`
-		DnsConfig string `json:"dns_config"`
+		CatchAll    bool   `json:"catch_all"`
+		GeoipCN     bool   `json:"geoip_cn"`
+		DnsConfig   string `json:"dns_config"`
+		HostsConfig string `json:"hosts_config"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -1522,6 +1627,7 @@ func (h *Handler) proxyGenerateConfig(c *gin.Context) {
 		CatchAll:      req.CatchAll,
 		GeoipCN:       req.GeoipCN,
 		DnsConfig:     req.DnsConfig,
+		HostsConfig:   req.HostsConfig,
 	}
 	data, err := generator.Generate(opts)
 	if err != nil {
@@ -1542,10 +1648,11 @@ func (h *Handler) proxyPublishProfile(c *gin.Context) {
 			model.ServiceGroup
 			CachedRules string `json:"cached_rules"`
 		} `json:"service_groups"`
-		CatchAll  bool   `json:"catch_all"`
-		GeoipCN   bool   `json:"geoip_cn"`
-		DnsConfig string `json:"dns_config"`
-		Token     string `json:"token"`
+		CatchAll    bool   `json:"catch_all"`
+		GeoipCN     bool   `json:"geoip_cn"`
+		DnsConfig   string `json:"dns_config"`
+		HostsConfig string `json:"hosts_config"`
+		Token       string `json:"token"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -1568,6 +1675,7 @@ func (h *Handler) proxyPublishProfile(c *gin.Context) {
 		CatchAll:      req.CatchAll,
 		GeoipCN:       req.GeoipCN,
 		DnsConfig:     req.DnsConfig,
+		HostsConfig:   req.HostsConfig,
 	}
 	data, err := generator.Generate(opts)
 	if err != nil {
@@ -1598,6 +1706,7 @@ type exportData struct {
 	ProfileNodes    []model.ProfileNode    `json:"profile_nodes"`
 	ProfileServices []model.ProfileService `json:"profile_services"`
 	DnsPresets      []model.DnsPreset      `json:"dns_presets"`
+	HostsPresets    []model.HostsPreset    `json:"hosts_presets"`
 	AliasPresets    string                 `json:"alias_presets"`
 	Settings        map[string]string      `json:"settings"`
 }
@@ -1620,6 +1729,7 @@ func (h *Handler) exportAllData(c *gin.Context) {
 	profileNodes, _ := h.store.ListAllProfileNodes()
 	profileServices, _ := h.store.ListAllProfileServices()
 	dnsPresets, _ := h.store.ListDnsPresets()
+	hostsPresets, _ := h.store.ListHostsPresets()
 	settings, _ := h.store.ListSettings()
 	aliasPresets, _ := h.store.GetSetting("alias_presets")
 
@@ -1648,6 +1758,7 @@ func (h *Handler) exportAllData(c *gin.Context) {
 		ProfileNodes:    profileNodes,
 		ProfileServices: profileServices,
 		DnsPresets:      dnsPresets,
+		HostsPresets:    hostsPresets,
 		AliasPresets:    aliasPresets,
 		Settings:        settingsMap,
 	})
@@ -1682,7 +1793,7 @@ func (h *Handler) importAllData(c *gin.Context) {
 	if err := h.store.ImportData(
 		data.Subscriptions, nodes, groups,
 		data.Profiles, data.ProfileNodes, data.ProfileServices,
-		data.DnsPresets, settings,
+		data.DnsPresets, data.HostsPresets, settings,
 	); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -1695,6 +1806,7 @@ func (h *Handler) importAllData(c *gin.Context) {
 			"services":      len(data.ServiceGroups),
 			"profiles":      len(data.Profiles),
 			"dns_presets":   len(data.DnsPresets),
+			"hosts_presets": len(data.HostsPresets),
 		},
 	})
 }

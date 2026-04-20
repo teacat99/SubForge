@@ -94,6 +94,9 @@ func main() {
 	})
 	log.Printf("DNS presets seeded")
 
+	s.SeedHostsPresets([]model.HostsPreset{})
+	log.Printf("Hosts presets seeded")
+
 	s.EnsureMigrate()
 	cleanNodeNames(s)
 	go initialRuleFetch(s)

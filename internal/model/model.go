@@ -39,6 +39,7 @@ type ServiceGroup struct {
 	RuleType     string     `json:"rule_type" gorm:"default:remote"`
 	RuleURL      string     `json:"rule_url"`
 	DefaultProxy string     `json:"default_proxy" gorm:"default:自动选择"`
+	DirectRule   bool       `json:"direct_rule" gorm:"default:false"`
 	SortOrder    int        `json:"sort_order"`
 	RuleCount    int        `json:"rule_count"`
 	Enabled      bool       `json:"enabled" gorm:"default:true"`
@@ -67,19 +68,28 @@ type ProfileNode struct {
 }
 
 type UserProfile struct {
-	ID          uint       `gorm:"primaryKey" json:"id"`
-	Name        string     `json:"name"`
-	Token       string     `gorm:"uniqueIndex" json:"token"`
-	Enabled     bool       `gorm:"default:true" json:"enabled"`
-	ExpiresAt   *time.Time `json:"expires_at"`
-	CatchAll    bool       `gorm:"default:true" json:"catch_all"`
-	GeoipCN     bool       `json:"geoip_cn" gorm:"default:true"`
-	DnsPresetID uint       `json:"dns_preset_id"`
-	SortOrder   int        `json:"sort_order" gorm:"default:0"`
-	CreatedAt   time.Time  `json:"created_at"`
+	ID            uint       `gorm:"primaryKey" json:"id"`
+	Name          string     `json:"name"`
+	Token         string     `gorm:"uniqueIndex" json:"token"`
+	Enabled       bool       `gorm:"default:true" json:"enabled"`
+	ExpiresAt     *time.Time `json:"expires_at"`
+	CatchAll      bool       `gorm:"default:true" json:"catch_all"`
+	GeoipCN       bool       `json:"geoip_cn" gorm:"default:true"`
+	DnsPresetID   uint       `json:"dns_preset_id"`
+	HostsPresetID uint       `json:"hosts_preset_id"`
+	SortOrder     int        `json:"sort_order" gorm:"default:0"`
+	CreatedAt     time.Time  `json:"created_at"`
 }
 
 type DnsPreset struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Name      string    `json:"name"`
+	Config    string    `gorm:"type:text" json:"config"`
+	Builtin   bool      `json:"builtin"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type HostsPreset struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	Name      string    `json:"name"`
 	Config    string    `gorm:"type:text" json:"config"`

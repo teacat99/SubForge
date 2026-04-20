@@ -19,6 +19,7 @@ type Options struct {
 	CatchAll      bool
 	GeoipCN       bool
 	DnsConfig     string // raw YAML of dns section; empty = use default
+	HostsConfig   string // raw YAML of hosts section; empty = no hosts
 }
 
 type clashProxy = map[string]any
@@ -57,6 +58,13 @@ func Generate(opts Options) ([]byte, error) {
 		"proxy-groups":        proxyGroups,
 		"rules":               rules,
 		"dns":                 dnsSection,
+	}
+
+	if strings.TrimSpace(opts.HostsConfig) != "" {
+		var hostsParsed map[string]any
+		if err := yaml.Unmarshal([]byte(opts.HostsConfig), &hostsParsed); err == nil && len(hostsParsed) > 0 {
+			config["hosts"] = hostsParsed
+		}
 	}
 
 	data, err := yaml.Marshal(config)
@@ -146,6 +154,10 @@ func buildProxyGroups(groups []model.ServiceGroup, nodeNames []string, catchAll 
 	}
 
 	for _, g := range groups {
+		// DirectRule groups skip dedicated proxy-group; rules use g.DefaultProxy directly.
+		if g.DirectRule {
+			continue
+		}
 		var proxies []string
 		dp := strings.TrimSpace(g.DefaultProxy)
 		switch dp {
@@ -187,7 +199,14 @@ func buildProxyGroups(groups []model.ServiceGroup, nodeNames []string, catchAll 
 func buildRules(groups []model.ServiceGroup, geoipCN bool) []string {
 	var rules []string
 	for _, g := range groups {
-		parsed := rule.ParseCachedRules(g.CachedRules, g.Name)
+		target := g.Name
+		if g.DirectRule {
+			target = strings.TrimSpace(g.DefaultProxy)
+			if target == "" {
+				target = "DIRECT"
+			}
+		}
+		parsed := rule.ParseCachedRules(g.CachedRules, target)
 		rules = append(rules, parsed...)
 	}
 	if geoipCN {
