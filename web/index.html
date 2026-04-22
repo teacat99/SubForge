@@ -93,7 +93,14 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 .inline-input{border:1px solid transparent;padding:4px 8px;border-radius:4px;font-size:13px;width:120px;background:transparent}
 .inline-input:hover{border-color:#d1d5db;background:#fff}
 .inline-input:focus{border-color:#4f46e5;background:#fff;box-shadow:0 0 0 2px rgba(79,70,229,.1)}
-.lang-btn{min-width:42px;text-align:center;font-weight:600;letter-spacing:.5px}
+.lang-btn{display:inline-flex;align-items:center;justify-content:center;background:transparent;border:0;padding:6px;border-radius:8px;cursor:pointer;color:inherit;transition:background .15s,color .15s,transform .15s}
+.lang-btn:hover{background:rgba(127,127,127,.14);transform:scale(1.05)}
+.lang-btn:active{transform:scale(.96)}
+.lang-btn svg{width:20px;height:20px;display:block}
+.user-menu .lang-btn{color:rgba(255,255,255,.85);border:0}
+.user-menu .lang-btn:hover{background:rgba(255,255,255,.18);color:#fff}
+.login-card .lang-btn{color:#6b7280}
+.login-card .lang-btn:hover{color:#4f46e5}
 @media (max-width:768px){
   nav{flex-wrap:wrap;height:auto;padding:8px 12px;gap:8px}
   nav h1{font-size:16px;margin-right:0;flex:1}
@@ -134,7 +141,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 <!-- Login -->
 <div v-if="!loggedIn && modeLoaded" class="login-page">
   <div class="login-card">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:-12px"><button class="btn btn-ghost btn-sm lang-btn" @click="toggleLang">{{langLabel}}</button></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:-8px"><button type="button" class="lang-btn" @click="toggleLang" :title="t('lang_switch')" :aria-label="t('lang_switch')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m10.5 21 5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 0 1 6-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257v1.131m0 0a24.152 24.152 0 0 1-5.43 5.62m5.43-5.62a24.137 24.137 0 0 1 5.43 5.62"/></svg></button></div>
     <h2>{{t('brand')}}</h2>
     <template v-if="serverMode.login_enabled && activeMode==='login'">
       <p>{{t('login_intro')}}</p>
@@ -160,6 +167,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
     <a :class="{active:tab==='profiles'}" @click="tab='profiles';loadDnsPresets();loadHostsPresets()">{{t('tab_profiles')}}</a>
   </div>
   <div class="user-menu">
+    <button type="button" class="lang-btn" @click="toggleLang" :title="t('lang_switch')" :aria-label="t('lang_switch')"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m10.5 21 5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 0 1 6-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257v1.131m0 0a24.152 24.152 0 0 1-5.43 5.62m5.43-5.62a24.137 24.137 0 0 1 5.43 5.62"/></svg></button>
     <template v-if="activeMode==='login'">
       <button class="btn" @click="openAccountModal">{{t('btn_account')}}</button>
       <button class="btn" v-if="serverMode.local_enabled" @click="switchToLocal">{{t('btn_local_mode')}}</button>
@@ -171,7 +179,6 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
       <button class="btn" @click="openImportExport">{{t('btn_data')}}</button>
       <button class="btn" v-if="serverMode.login_enabled" @click="switchToLogin">{{t('btn_switch_login')}}</button>
     </template>
-    <button class="btn lang-btn" @click="toggleLang" :title="t('brand')">{{langLabel}}</button>
   </div>
 </nav>
 
@@ -692,6 +699,7 @@ const {createApp,ref,computed,onMounted} = Vue
 const I18N_MESSAGES = {
   'zh-CN':{
     brand:'SubForge',
+    lang_switch:'切换为 English',
     tab_subs:'订阅源',tab_nodes:'节点管理',tab_services:'服务规则',tab_profiles:'订阅分发',
     btn_account:'账号设置',btn_local_mode:'本地模式',btn_data:'数据管理',btn_logout:'登出',btn_switch_login:'切换登录',
     badge_local_mode:'本地模式',
@@ -753,6 +761,7 @@ const I18N_MESSAGES = {
   },
   'en-US':{
     brand:'SubForge',
+    lang_switch:'Switch to 中文',
     tab_subs:'Subscriptions',tab_nodes:'Nodes',tab_services:'Service Rules',tab_profiles:'Distribution',
     btn_account:'Account',btn_local_mode:'Local',btn_data:'Data',btn_logout:'Logout',btn_switch_login:'Login Mode',
     badge_local_mode:'Local Mode',
@@ -828,7 +837,7 @@ createApp({
       document.documentElement.lang = currentLang.value
     }
     document.documentElement.lang = currentLang.value
-    const langLabel = computed(()=> currentLang.value === 'zh-CN' ? 'EN' : '中')
+    const langLabel = computed(()=> currentLang.value === 'zh-CN' ? 'EN' : '中文')
 
     const serverMode = ref({login_enabled:true,local_enabled:false})
     const activeMode = ref('login')
