@@ -1,18 +1,20 @@
 package subscription
 
 import (
-	"github.com/teacat99/SubForge/internal/model"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/teacat99/SubForge/internal/model"
 	"gopkg.in/yaml.v3"
 )
 
@@ -24,7 +26,13 @@ type TrafficInfo struct {
 }
 
 type clashConfig struct {
-	Proxies []map[string]any `yaml:"proxies"`
+	Proxies        []map[string]any         `yaml:"proxies"`
+	ProxyProviders map[string]proxyProvider `yaml:"proxy-providers"`
+}
+
+type proxyProvider struct {
+	Type string `yaml:"type"`
+	URL  string `yaml:"url"`
 }
 
 func Fetch(sub *model.Subscription) ([]model.Node, *TrafficInfo, error) {
@@ -38,20 +46,12 @@ func Fetch(sub *model.Subscription) ([]model.Node, *TrafficInfo, error) {
 		info = parseTrafficHeader(h)
 	}
 
-	nodes, err := parseYAML(sub.ID, result.Data)
-	if err == nil && len(nodes) > 0 {
+	nodes, err := parseSubscriptionData(sub.ID, result.Data, true)
+	if err == nil {
 		return nodes, info, nil
 	}
 
-	nodes, err2 := parseBase64(sub.ID, result.Data)
-	if err2 == nil && len(nodes) > 0 {
-		return nodes, info, nil
-	}
-
-	if err != nil {
-		return nil, info, fmt.Errorf("yaml: %w; base64: %w", err, err2)
-	}
-	return nil, info, fmt.Errorf("no proxies found in any format")
+	return nil, info, err
 }
 
 type fetchResult struct {
@@ -157,6 +157,10 @@ func FormatBytes(bytes int64) string {
 }
 
 func ParseContent(subID uint, data []byte) ([]model.Node, error) {
+	return parseSubscriptionData(subID, data, true)
+}
+
+func parseSubscriptionData(subID uint, data []byte, allowProviders bool) ([]model.Node, error) {
 	nodes, err := parseYAML(subID, data)
 	if err == nil && len(nodes) > 0 {
 		return nodes, nil
@@ -164,6 +168,13 @@ func ParseContent(subID uint, data []byte) ([]model.Node, error) {
 	nodes, err2 := parseBase64(subID, data)
 	if err2 == nil && len(nodes) > 0 {
 		return nodes, nil
+	}
+	if allowProviders {
+		nodes, err3 := parseProxyProviders(subID, data)
+		if err3 == nil && len(nodes) > 0 {
+			return nodes, nil
+		}
+		return nil, fmt.Errorf("yaml: %w; base64: %w; proxy-providers: %w", err, err2, err3)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("yaml: %w; base64: %w", err, err2)
@@ -180,6 +191,54 @@ func parseYAML(subID uint, data []byte) ([]model.Node, error) {
 		return nil, fmt.Errorf("no proxies found")
 	}
 	return proxiesToNodes(subID, cfg.Proxies), nil
+}
+
+func parseProxyProviders(subID uint, data []byte) ([]model.Node, error) {
+	var cfg clashConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("yaml parse: %w", err)
+	}
+	if len(cfg.ProxyProviders) == 0 {
+		return nil, fmt.Errorf("no proxy-providers found")
+	}
+
+	var all []model.Node
+	var errs []string
+	names := make([]string, 0, len(cfg.ProxyProviders))
+	for name := range cfg.ProxyProviders {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		provider := cfg.ProxyProviders[name]
+		if strings.TrimSpace(provider.URL) == "" {
+			continue
+		}
+		providerType := strings.TrimSpace(provider.Type)
+		if providerType != "" && !strings.EqualFold(providerType, "http") {
+			continue
+		}
+		result, err := fetchContent(provider.URL)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", name, err))
+			continue
+		}
+		nodes, err := parseSubscriptionData(subID, result.Data, false)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", name, err))
+			continue
+		}
+		all = append(all, nodes...)
+	}
+
+	nodes := dedupeNodes(all)
+	if len(nodes) > 0 {
+		return nodes, nil
+	}
+	if len(errs) > 0 {
+		return nil, errors.New(strings.Join(errs, "; "))
+	}
+	return nil, fmt.Errorf("no supported http proxy-providers found")
 }
 
 func parseBase64(subID uint, data []byte) ([]model.Node, error) {
@@ -455,6 +514,20 @@ func proxiesToNodes(subID uint, proxies []map[string]any) []model.Node {
 		})
 	}
 	return nodes
+}
+
+func dedupeNodes(nodes []model.Node) []model.Node {
+	seen := make(map[string]bool)
+	result := make([]model.Node, 0, len(nodes))
+	for _, n := range nodes {
+		key := fmt.Sprintf("%s:%s:%d", n.Type, n.Server, n.Port)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		result = append(result, n)
+	}
+	return result
 }
 
 func toInt(v any) int {

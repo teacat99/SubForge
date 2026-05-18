@@ -24,8 +24,12 @@ nav .tabs a.active{background:rgba(255,255,255,.2);color:#fff;font-weight:500}
 .badge-gray{background:#f3f4f6!important;color:#6b7280!important}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;padding:10px 12px;background:#fff!important;color:#000!important;font-weight:500;border-bottom:1px solid #000!important;font-size:13px;white-space:nowrap}
-td{padding:10px 12px;border-bottom:1px solid #f3f4f6}
+td{padding:10px 12px;border-bottom:1px solid #f3f4f6;vertical-align:top;overflow-wrap:anywhere;word-break:break-word}
 tr:hover td{background:#fafbff}
+.table-scroll{position:relative;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+.table-scroll::after{content:'';position:absolute;top:0;right:0;width:22px;height:100%;pointer-events:none;background:linear-gradient(to left,rgba(17,24,39,.08),rgba(255,255,255,0))}
+.cell-ellipsis{display:inline-block;max-width:100%;vertical-align:top}
+.long-pressable{cursor:help}
 .btn{padding:6px 14px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;transition:.2s;display:inline-flex;align-items:center;gap:4px}
 .btn-primary{background:#4f46e5;color:#fff}.btn-primary:hover{background:#4338ca}
 .btn-success{background:#10b981;color:#fff}.btn-success:hover{background:#059669}
@@ -58,7 +62,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
 .sub-url input{font-family:monospace;font-size:13px;background:#f9fafb}
 .sub-url .btn{white-space:nowrap}
 .empty{text-align:center;padding:40px;color:#9ca3af;font-size:14px}
-.toast{position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:8px;color:#fff;font-size:14px;z-index:999;animation:slideIn .3s}
+.toast{position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:8px;color:#fff;font-size:14px;z-index:999;animation:slideIn .3s;max-width:min(420px,calc(100vw - 24px));overflow-wrap:anywhere}
 .toast.success{background:#10b981}
 .toast.error{background:#ef4444}
 @keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
@@ -112,16 +116,22 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
   .container{padding:12px}
   .card{padding:14px;margin-bottom:12px}
   .card h2{font-size:15px;flex-wrap:wrap}
-  .stats{flex-direction:column;gap:8px;margin-bottom:14px}
-  .stat{padding:12px 16px}
-  .stat .num{font-size:22px}
   .form-row{flex-direction:column;align-items:stretch;gap:8px}
   .form-row .field{flex:1 1 auto;width:100%}
   .form-row > div:not(.field){width:100%}
   .form-row > div:not(.field) .btn{width:100%;justify-content:center}
+  .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
+  .stat{padding:10px 6px}
+  .stat .num{font-size:20px}
+  .stat .label{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   table{font-size:13px;min-width:560px}
-  th,td{padding:8px 8px}
+  td{padding:8px 8px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;word-break:normal}
+  td:has(button),td:has(input),td:has(select),td:has(.toggle){overflow:visible;text-overflow:clip}
+  th{padding:8px 8px}
+  td .tag,td .btn-text,td .toggle{word-break:normal;overflow-wrap:normal}
+  td .inline-input{max-width:150px}
   .modal{width:96vw;padding:18px;border-radius:10px;max-height:92vh}
+  .modal>div:last-child{position:sticky;bottom:-18px;margin:12px -18px -18px;padding:12px 18px;background:#fff;border-top:1px solid #e5e7eb;z-index:2}
   .modal h3{font-size:16px;margin-bottom:14px}
   .login-card{width:92vw;padding:28px 22px}
   .toast{right:12px;left:12px;width:auto;text-align:center}
@@ -131,7 +141,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
   .sub-url{flex-wrap:wrap}
   .sub-url input{flex:1 1 100%;min-width:0}
   .sub-url .btn{flex:1 1 auto;justify-content:center}
-  .truncate{max-width:90px}
+  .truncate,.cell-ellipsis{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
 </style>
 </head>
@@ -202,7 +212,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
     </div>
     <div class="card">
       <h2>{{t('subs_list')}} <span class="badge">{{subscriptions.length}}</span></h2>
-      <div style="overflow-x:auto">
+      <div class="table-scroll">
       <table v-if="subscriptions.length">
         <thead><tr><th>{{t('col_sort')}}</th><th>{{t('col_name')}}</th><th>{{t('col_url')}}</th><th>{{t('col_nodes')}}</th><th>{{t('col_traffic')}}</th><th>{{t('col_expiry')}}</th><th>{{t('col_updated')}}</th><th>{{t('col_auto')}}</th><th>{{t('col_interval')}}</th><th>{{t('col_append_name')}}</th><th>{{t('col_append_traffic')}}</th><th>{{t('col_actions')}}</th></tr></thead>
         <tbody>
@@ -211,8 +221,8 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
               <button class="btn-icon" @click="moveSubscription(i,-1)" :disabled="i===0" style="font-size:12px">↑</button>
               <button class="btn-icon" @click="moveSubscription(i,1)" :disabled="i===subscriptions.length-1" style="font-size:12px">↓</button>
             </td>
-            <td><strong>{{s.name}}</strong></td>
-            <td><span class="truncate" :title="s.url">{{s.url||t('val_local')}}</span></td>
+            <td><strong class="cell-ellipsis long-pressable" :title="s.name" @touchstart="startLongPress(s.name)" @touchend="cancelLongPress" @touchmove="cancelLongPress" @contextmenu.prevent>{{s.name}}</strong></td>
+            <td><span class="truncate long-pressable" :title="s.url||t('val_local')" @touchstart="startLongPress(s.url||t('val_local'))" @touchend="cancelLongPress" @touchmove="cancelLongPress" @contextmenu.prevent>{{s.url||t('val_local')}}</span></td>
             <td>{{s.node_count}}</td>
             <td>{{fmtTraffic(s)}}</td>
             <td>{{s.sub_expiry||'-'}}</td>
@@ -249,7 +259,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
           <option v-for="s in subscriptions" :value="s.name" :key="s.id">{{s.name}}</option>
         </select>
       </div>
-      <div style="overflow-x:auto">
+      <div class="table-scroll">
       <table v-if="filteredNodes.length">
         <thead><tr><th>{{t('tab_subs')}}</th><th>{{t('col_name')}}</th><th>{{t('col_alias')}}</th><th>{{t('col_proto')}}</th><th>{{t('col_server')}}</th><th>{{t('col_port')}}</th><th>{{t('col_enabled')}}</th><th>{{t('col_actions')}}</th></tr></thead>
         <tbody>
@@ -257,10 +267,10 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
             <tr v-if="i>0&&n.sub_name!==filteredNodes[i-1].sub_name" style="height:2px"><td colspan="8" style="padding:0;background:#e5e7eb;border:none"></td></tr>
             <tr>
               <td><span class="tag" :class="n.sub_name==='本地'?'tag-orange':'tag-blue'" v-if="n.sub_name">{{n.sub_name==='本地'?t('val_local_tag'):n.sub_name}}</span></td>
-              <td>{{n.name}}</td>
+              <td><span class="cell-ellipsis long-pressable" :title="n.name" @touchstart="startLongPress(n.name)" @touchend="cancelLongPress" @touchmove="cancelLongPress" @contextmenu.prevent>{{n.name}}</span></td>
               <td><input class="inline-input" :value="n.alias" @blur="saveAlias(n,$event.target.value)" @keyup.enter="$event.target.blur()" :placeholder="t('alias_ph')"></td>
               <td><span class="tag tag-blue">{{n.type}}</span></td>
-              <td style="font-family:monospace;font-size:13px">{{n.server}}</td>
+              <td style="font-family:monospace;font-size:13px"><span class="cell-ellipsis long-pressable" :title="n.server" @touchstart="startLongPress(n.server)" @touchend="cancelLongPress" @touchmove="cancelLongPress" @contextmenu.prevent>{{n.server}}</span></td>
               <td>{{n.port}}</td>
               <td><label class="toggle"><input type="checkbox" :checked="n.enabled" @change="toggleNode(n.id,$event.target.checked)"><span class="slider"></span></label></td>
               <td style="white-space:nowrap">
@@ -297,7 +307,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
         <h2 style="margin-bottom:0">{{t('services_title')}} <span class="badge">{{services.length}}</span></h2>
         <button class="btn btn-primary btn-sm" @click="openAddSvc">{{t('btn_add_service')}}</button>
       </div>
-      <div style="overflow-x:auto">
+      <div class="table-scroll">
       <table v-if="services.length">
         <thead><tr><th>{{t('col_sort')}}</th><th>{{t('col_enabled')}}</th><th>{{t('col_icon')}}</th><th>{{t('col_name')}}</th><th>{{t('col_type')}}</th><th>{{t('col_default_proxy')}}</th><th>{{t('col_direct_rule')}}</th><th>{{t('col_rule_count')}}</th><th>{{t('col_updated')}}</th><th>{{t('col_actions')}}</th><th>{{t('col_auto')}}</th></tr></thead>
         <tbody>
@@ -308,7 +318,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
             </td>
             <td><label class="toggle"><input type="checkbox" :checked="s.enabled" @change="toggleSvcEnabled(s)"><span class="slider"></span></label></td>
             <td><img v-if="s.icon&&s.icon.startsWith('http')" :src="s.icon" style="width:20px;height:20px;vertical-align:middle;border-radius:4px"><span v-else>{{s.icon}}</span></td>
-            <td><strong>{{s.name}}</strong></td>
+            <td><strong class="cell-ellipsis long-pressable" :title="s.name" @touchstart="startLongPress(s.name)" @touchend="cancelLongPress" @touchmove="cancelLongPress" @contextmenu.prevent>{{s.name}}</strong></td>
             <td><span class="tag" :class="s.rule_type==='local'?'tag-orange':'tag-blue'">{{s.rule_type==='local'?t('type_local'):t('type_remote')}}</span></td>
             <td><span class="tag" :class="s.default_proxy==='DIRECT'?'tag-green':s.default_proxy==='REJECT'?'tag-orange':'tag-blue'">{{s.default_proxy}}</span></td>
             <td><label class="toggle"><input type="checkbox" :checked="s.direct_rule" @change="toggleSvcDirectRule(s)"><span class="slider"></span></label></td>
@@ -337,7 +347,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
         <thead><tr><th>{{t('col_name')}}</th><th>{{t('col_type')}}</th><th>{{t('col_actions')}}</th></tr></thead>
         <tbody>
           <tr v-for="d in dnsPresets" :key="d.id">
-            <td><strong>{{d.name}}</strong></td>
+            <td><strong class="cell-ellipsis long-pressable" :title="d.name" @touchstart="startLongPress(d.name)" @touchend="cancelLongPress" @touchmove="cancelLongPress" @contextmenu.prevent>{{d.name}}</strong></td>
             <td><span class="tag" :class="d.builtin?'tag-green':'tag-blue'">{{d.builtin?t('type_default'):t('type_custom')}}</span></td>
             <td>
               <button class="btn-text" @click="editDns(d)">{{t('btn_edit')}}</button>
@@ -358,7 +368,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
         <thead><tr><th>{{t('col_name')}}</th><th>{{t('col_type')}}</th><th>{{t('col_actions')}}</th></tr></thead>
         <tbody>
           <tr v-for="h in hostsPresets" :key="h.id">
-            <td><strong>{{h.name}}</strong></td>
+            <td><strong class="cell-ellipsis long-pressable" :title="h.name" @touchstart="startLongPress(h.name)" @touchend="cancelLongPress" @touchmove="cancelLongPress" @contextmenu.prevent>{{h.name}}</strong></td>
             <td><span class="tag" :class="h.builtin?'tag-green':'tag-blue'">{{h.builtin?t('type_default'):t('type_custom')}}</span></td>
             <td>
               <button class="btn-text" @click="editHosts(h)">{{t('btn_edit')}}</button>
@@ -479,7 +489,8 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
             <button class="btn-text" @click="syncProfileSvcRules(p.id)" style="margin-left:auto">{{t('btn_sync_rules')}}</button>
             <button class="btn-text" @click="resetProfileSvcOrder">{{t('btn_reset_rules')}}</button>
           </h3>
-          <table v-if="profileSvcData.length" style="font-size:13px">
+          <div class="table-scroll" v-if="profileSvcData.length">
+          <table style="font-size:13px">
             <thead><tr><th>{{t('col_enabled')}}</th><th>{{t('col_sort')}}</th><th>{{t('col_icon')}}</th><th>{{t('col_name')}}</th><th>{{t('col_default_proxy')}}</th><th>{{t('col_rule_count')}}</th></tr></thead>
             <tbody>
               <tr v-for="(s,i) in profileSvcData" :key="s.service_group_id">
@@ -489,7 +500,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
                   <button class="btn-icon" @click="moveProfileSvc(i,1)" :disabled="i===profileSvcData.length-1" style="font-size:12px">↓</button>
                 </td>
                 <td><img v-if="s.icon&&s.icon.startsWith('http')" :src="s.icon" style="width:20px;height:20px;vertical-align:middle;border-radius:4px"><span v-else>{{s.icon}}</span></td>
-                <td>{{s.name}}</td>
+                <td><span class="cell-ellipsis long-pressable" :title="s.name" @touchstart="startLongPress(s.name)" @touchend="cancelLongPress" @touchmove="cancelLongPress" @contextmenu.prevent>{{s.name}}</span></td>
                 <td>
                   <span v-if="s.direct_rule" class="tag tag-green" :title="t('svc_direct_label')">{{t('col_direct_rule')}} → {{s.default_proxy}}</span>
                   <select v-else :value="s.default_proxy_override||''" @change="updateProfileSvcProxy(s.service_group_id,$event.target.value)" style="width:auto;min-width:100px;padding:3px 6px;font-size:12px">
@@ -505,6 +516,7 @@ textarea{resize:vertical;min-height:120px;font-family:"Fira Code",monospace;font
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
 
         <!-- Preview -->
@@ -923,7 +935,18 @@ createApp({
     const profileEnabledNodes = computed(()=>profileNodeData.value.filter(n=>n.enabled))
     const profileEnabledSvcCount = computed(()=>profileSvcData.value.filter(s=>s.enabled).length)
 
+    let longPressTimer = null
     function notify(msg,type='success'){toast.value={show:true,msg,type};setTimeout(()=>toast.value.show=false,2500)}
+    function startLongPress(value){
+      cancelLongPress()
+      if(!value) return
+      longPressTimer = setTimeout(()=>notify(String(value)),600)
+    }
+    function cancelLongPress(){
+      if(!longPressTimer) return
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
     function fmtTraffic(s){
       if(!s.traffic_total) return '-'
       return fmtBytes(s.traffic_used)+' / '+fmtBytes(s.traffic_total)
@@ -1438,7 +1461,9 @@ createApp({
     async function fetchSub(id){
       notify(t('notify_fetching'))
       const r=await api(`/subscriptions/${id}/fetch`,{method:'POST'})
-      if(r?.ok){notify(t('notify_fetch_ok',{n:r.count}));load()}
+      if(r?.ok) notify(t('notify_fetch_ok',{n:r.count}))
+      await load()
+      return !!r?.ok
     }
     async function delSub(id){if(!confirm(t('confirm_delete')))return;await api(`/subscriptions/${id}`,{method:'DELETE'});notify(t('notify_deleted'));load()}
     async function patchSub(s,fields){
@@ -1880,7 +1905,7 @@ createApp({
       expandedProfile,profileNodeData,profileSvcData,profilePreview,profilePreviewContent,
       enabledNodes,filteredNodes,totalRules,subUrl,
       groupedProfileNodes,profileEnabledNodeCount,profileEnabledNodes,profileEnabledSvcCount,
-      notify,fmtTraffic,fmtBytes,formatDate,isExpired,nodeDisplayName,
+      notify,startLongPress,cancelLongPress,fmtTraffic,fmtBytes,formatDate,isExpired,nodeDisplayName,
       checkAuth,login,logout,load,loadServices,loadDnsPresets,loadHostsPresets,
       switchToLocal,switchToLogin,
       addSub,fetchSub,delSub,patchSub,moveSubscription,openEditSub,saveEditSub,

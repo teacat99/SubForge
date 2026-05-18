@@ -8,7 +8,7 @@
 
 ## 功能特性
 
-- **订阅源管理** — 添加多个订阅源，自动/手动拉取节点，支持流量统计和过期时间展示
+- **订阅源管理** — 添加多个订阅源，自动/手动拉取节点，支持流量统计和过期时间展示；支持直接节点 YAML、Base64 URI 列表以及带 HTTP `proxy-providers` 的 Mihomo Profile
 - **节点管理** — 自定义别名、启用/禁用、预设别名规则、手动添加本地节点
 - **服务规则** — 内置 22 条常用分流规则（Google、YouTube、OpenAI、Steam 等），支持添加远程/本地规则，可调整排序和启用状态；支持「直连规则」开关跳过独立 proxy-group
 - **Hosts / DNS 预设** — 内置 DNS 预设，支持自定义 DNS / Hosts 配置并绑定到不同的分发配置
@@ -21,6 +21,18 @@
 - **多语言界面** — Web 管理界面内置中文 / English 切换，移动端响应式适配
 - **Web 管理界面** — 单文件 Vue 3 前端，无需独立构建步骤
 - **认证与安全** — Cookie 会话认证，bcrypt 密码哈希；可选纯浏览器本地模式（数据保存在 localStorage，不依赖后端账号）
+
+## 订阅格式支持
+
+SubForge 会将订阅源解析为可管理的节点列表，再按分发配置生成新的 Clash/Mihomo YAML。
+
+当前支持：
+
+- 顶层包含 `proxies:` 的 Clash/Mihomo YAML。
+- Base64 编码的节点 URI 列表（`vless://`、`vmess://`、`ss://`、`trojan://`）。
+- 完整 Mihomo Profile 中 `proxy-providers` 为 `type: http` 且包含 `url` 的远程 provider。SubForge 会自动拉取 provider URL 并解析其中节点。
+
+暂不支持仅依赖本地 `path` 的 `file` provider，因为该路径通常属于客户端本机缓存，服务端或容器无法可靠访问。
 
 ## 截图
 

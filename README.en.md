@@ -8,7 +8,7 @@ It aggregates nodes from multiple subscription sources and, with custom service 
 
 ## Features
 
-- **Subscription management** — Add multiple subscriptions, fetch nodes manually or on a schedule, with traffic statistics and expiry display
+- **Subscription management** — Add multiple subscriptions, fetch nodes manually or on a schedule, with traffic statistics and expiry display; supports direct node YAML, Base64 URI lists, and Mihomo profiles with HTTP `proxy-providers`
 - **Node management** — Custom aliases, enable/disable, alias preset rules, manually add local nodes
 - **Service rules** — 22 built-in routing rule sets (Google, YouTube, OpenAI, Steam, etc.); add remote/local rules, reorder and toggle them; "Direct rule" switch skips the dedicated proxy-group
 - **Hosts / DNS presets** — Built-in DNS preset; add custom DNS / Hosts configurations and bind them to different distributions
@@ -21,6 +21,18 @@ It aggregates nodes from multiple subscription sources and, with custom service 
 - **Multilingual UI** — Built-in 中文 / English switcher; mobile-friendly responsive layout
 - **Web UI** — Single-file Vue 3 frontend, no separate build step required
 - **Auth & security** — Cookie session auth, bcrypt password hashing; optional browser-only local mode (data stored in localStorage, no backend account needed)
+
+## Supported Subscription Formats
+
+SubForge parses subscription sources into manageable node lists, then generates new Clash/Mihomo YAML from each distribution profile.
+
+Supported inputs:
+
+- Clash/Mihomo YAML with top-level `proxies:`.
+- Base64-encoded node URI lists (`vless://`, `vmess://`, `ss://`, `trojan://`).
+- Full Mihomo profiles whose `proxy-providers` are `type: http` and include a `url`. SubForge automatically fetches the provider URL and parses the nodes from it.
+
+`file` providers that only reference a local `path` are not supported, because that path usually points to a client-side cache file that a server or container cannot access reliably.
 
 ## Screenshots
 
